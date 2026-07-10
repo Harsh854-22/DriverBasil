@@ -1,0 +1,14 @@
+.dotnet-home/
+.nuget/
+.appdata/
+.artifacts/
+artifacts/
+bin/
+obj/
+*.user
+*.suo
+*.log
+*.db
+*.db-shm
+*.db-wal
+SecureDeviceControl-Release.zip

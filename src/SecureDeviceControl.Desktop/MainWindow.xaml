@@ -1,0 +1,182 @@
+<Window x:Class="SecureDeviceControl.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Secure Device Control"
+        Height="620"
+        MinHeight="560"
+        Width="860"
+        MinWidth="760"
+        Background="#0F172A"
+        Foreground="#E5E7EB"
+        Loaded="Window_Loaded">
+  <Window.Resources>
+    <Style TargetType="TextBox">
+      <Setter Property="Margin" Value="0,6,0,14" />
+      <Setter Property="Padding" Value="10,8" />
+    </Style>
+    <Style TargetType="PasswordBox">
+      <Setter Property="Margin" Value="0,6,0,14" />
+      <Setter Property="Padding" Value="10,8" />
+    </Style>
+    <Style TargetType="Button">
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="Margin" Value="0,4,8,0" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style TargetType="Border" x:Key="Panel">
+      <Setter Property="Background" Value="#111C33" />
+      <Setter Property="BorderBrush" Value="#263754" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="20" />
+      <Setter Property="Margin" Value="0,0,0,16" />
+    </Style>
+  </Window.Resources>
+
+  <Grid Margin="28">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <DockPanel Grid.Row="0" Margin="0,0,0,20">
+      <StackPanel>
+        <TextBlock Text="Secure Device Control"
+                   FontSize="30"
+                   FontWeight="Bold" />
+        <TextBlock Text="PIN-gated pendrive access with service-owned enforcement"
+                   Foreground="#9CA3AF"
+                   Margin="0,6,0,0" />
+      </StackPanel>
+      <Button DockPanel.Dock="Right"
+              Content="Refresh"
+              HorizontalAlignment="Right"
+              Click="RefreshButton_Click" />
+    </DockPanel>
+
+    <Border Grid.Row="1" Style="{StaticResource Panel}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0">
+          <TextBlock Text="Service" Foreground="#9CA3AF" />
+          <TextBlock x:Name="ServiceStatusText"
+                     Text="Checking..."
+                     FontSize="18"
+                     FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel Grid.Column="1">
+          <TextBlock Text="Pendrive Lock" Foreground="#9CA3AF" />
+          <TextBlock x:Name="UsbLockText"
+                     Text="Unknown"
+                     FontSize="18"
+                     FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel Grid.Column="2">
+          <TextBlock Text="Unlock Timer" Foreground="#9CA3AF" />
+          <TextBlock x:Name="UnlockTimerText"
+                     Text="Inactive"
+                     FontSize="18"
+                     FontWeight="SemiBold" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <Border x:Name="SetupPanel" Style="{StaticResource Panel}">
+          <StackPanel>
+            <TextBlock Text="First-run PIN setup"
+                       FontSize="20"
+                       FontWeight="Bold" />
+            <TextBlock Text="Create two different 6-digit PINs. The service stores only protected hashes."
+                       Foreground="#9CA3AF"
+                       Margin="0,4,0,16" />
+            <TextBlock Text="Pendrive unlock PIN" />
+            <PasswordBox x:Name="SetupDevicePinBox" MaxLength="6" />
+            <TextBlock Text="Uninstall PIN" />
+            <PasswordBox x:Name="SetupUninstallPinBox" MaxLength="6" />
+            <Button Content="Initialize protection"
+                    Width="180"
+                    Click="InitializePinsButton_Click" />
+          </StackPanel>
+        </Border>
+
+        <Grid x:Name="MainPanel">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0" Style="{StaticResource Panel}" Margin="0,0,8,16">
+            <StackPanel>
+              <TextBlock Text="Use pendrive"
+                         FontSize="20"
+                         FontWeight="Bold" />
+              <TextBlock Text="Enter the pendrive PIN to unlock USB storage for 15 minutes."
+                         Foreground="#9CA3AF"
+                         Margin="0,4,0,16" />
+              <TextBlock Text="Pendrive unlock PIN" />
+              <PasswordBox x:Name="UnlockPinBox" MaxLength="6" />
+              <Button Content="Unlock for 15 minutes"
+                      Width="190"
+                      Click="UnlockButton_Click" />
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Column="1" Style="{StaticResource Panel}" Margin="8,0,0,16">
+            <StackPanel>
+              <TextBlock Text="Authorize uninstall"
+                         FontSize="20"
+                         FontWeight="Bold" />
+              <TextBlock Text="Enter the separate uninstall PIN to create a short-lived uninstall authorization."
+                         Foreground="#9CA3AF"
+                         Margin="0,4,0,16"
+                         TextWrapping="Wrap" />
+              <TextBlock Text="Uninstall PIN" />
+              <PasswordBox x:Name="UninstallPinBox" MaxLength="6" />
+              <Button Content="Create uninstall authorization"
+                      Width="240"
+                      Click="UninstallButton_Click" />
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <Border Style="{StaticResource Panel}">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,12">
+              <TextBlock Text="Activity"
+                         FontSize="20"
+                         FontWeight="Bold" />
+              <Button DockPanel.Dock="Right"
+                      Content="Load logs"
+                      HorizontalAlignment="Right"
+                      Click="LoadLogsButton_Click" />
+            </DockPanel>
+            <TextBox x:Name="ActivityLogBox"
+                     MinHeight="130"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"
+                     Background="#0B1220"
+                     Foreground="#CBD5E1"
+                     BorderBrush="#263754" />
+          </StackPanel>
+        </Border>
+
+        <TextBlock x:Name="MessageText"
+                   Foreground="#93C5FD"
+                   TextWrapping="Wrap"
+                   Margin="2,0,2,0" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

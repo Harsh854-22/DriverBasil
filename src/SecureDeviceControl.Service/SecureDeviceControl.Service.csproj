@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-SecureDeviceControl.Service-80ba8b09-e249-410f-a1b0-fd7fed05c9c0</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+    <PackageReference Include="System.IO.Pipes.AccessControl" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SecureDeviceControl.Shared\SecureDeviceControl.Shared.csproj" />
+    <ProjectReference Include="..\SecureDeviceControl.Domain\SecureDeviceControl.Domain.csproj" />
+    <ProjectReference Include="..\SecureDeviceControl.Infrastructure\SecureDeviceControl.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

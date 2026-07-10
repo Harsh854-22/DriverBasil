@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kavach — Documentation</title>
+  <!-- Google Fonts: Outfit for Headings, Inter for Body -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@600;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================
+       60-30-10 COLOR RATIO DESIGN SYSTEM
+       60% Base: Dark Slate #020617 / #0F172A
+       30% Structural: Slate-200 / Slate-300 / Card #1E293B
+       10% Accent: Electric Neon Blue #3B82F6 / #60A5FA
+       ========================================== */
+    :root {
+      --bg-base: #020617;
+      --bg-surface: #0f172a;
+      --bg-card: #1e293b;
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      --accent: #3b82f6;
+      --accent-glow: #60a5fa;
+      --border: #334155;
+      --font-heading: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      padding: 0;
+      overflow-x: hidden;
+      font-weight: 300;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* Header & Hero */
+    header {
+      padding: 80px 0 60px 0;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 120px;
+      height: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .title {
+      font-family: var(--font-heading);
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 900;
+      color: var(--text-primary);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+      color: var(--text-muted);
+      max-width: 700px;
+      font-weight: 400;
+    }
+
+    /* Grid & Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 40px;
+      margin-top: 60px;
+    }
+
+    @media (min-width: 768px) {
+      .grid {
+        grid-template-columns: 2fr 1fr;
+      }
+      .grid-equal {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* Section Typography */
+    section {
+      margin-bottom: 80px;
+    }
+
+    h2 {
+      font-family: var(--font-heading);
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 30px;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h2::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 24px;
+      background: var(--accent);
+      border-radius: 4px;
+    }
+
+    h3 {
+      font-family: var(--font-heading);
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 30px 0 15px 0;
+    }
+
+    p {
+      margin-bottom: 20px;
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+    }
+
+    /* Cards */
+    .card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: transparent;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(2, 6, 23, 0.6);
+    }
+
+    .card:hover::before {
+      background: var(--accent);
+    }
+
+    .card-accent {
+      border-color: rgba(59, 130, 246, 0.4);
+      background: linear-gradient(135deg, var(--bg-surface) 0%, #0d1e3d 100%);
+    }
+
+    /* Highlights & Lists */
+    ul {
+      list-style: none;
+      margin-bottom: 25px;
+    }
+
+    li {
+      position: relative;
+      padding-left: 24px;
+      margin-bottom: 12px;
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+    }
+
+    li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background-color: rgba(59, 130, 246, 0.15);
+      color: var(--accent-glow);
+      border-radius: 4px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      margin-bottom: 16px;
+    }
+
+    /* Steps Layout */
+    .steps-container {
+      position: relative;
+      padding-left: 30px;
+      border-left: 1px dashed var(--border);
+      margin: 40px 0;
+    }
+
+    .step-item {
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .step-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .step-number {
+      position: absolute;
+      left: -46px;
+      top: 0;
+      width: 32px;
+      height: 32px;
+      background-color: var(--bg-base);
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-heading);
+      font-weight: 800;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Code Blocks */
+    code, pre {
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      font-size: 0.95rem;
+      background-color: var(--bg-base);
+      border-radius: 6px;
+    }
+
+    code {
+      padding: 3px 6px;
+      color: var(--accent-glow);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    pre {
+      display: block;
+      padding: 20px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      margin: 15px 0 25px 0;
+      color: #e2e8f0;
+    }
+
+    /* Comparison Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 40px 0;
+      background-color: var(--bg-surface);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    th, td {
+      padding: 16px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background-color: rgba(255, 255, 255, 0.03);
+      font-family: var(--font-heading);
+      font-weight: 600;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background-color: rgba(59, 130, 246, 0.02);
+    }
+
+    /* FAQ Accordions */
+    .faq-item {
+      border: 1px solid var(--border);
+      background-color: var(--bg-surface);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .faq-trigger {
+      width: 100%;
+      padding: 20px;
+      background: none;
+      border: none;
+      text-align: left;
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s ease;
+    }
+
+    .faq-trigger:hover {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .faq-trigger::after {
+      content: "+";
+      font-size: 1.4rem;
+      color: var(--accent);
+      transition: transform 0.2s ease;
+    }
+
+    .faq-content {
+      padding: 0 20px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out, padding 0.3s ease;
+      color: var(--text-secondary);
+      border-top: 0 solid var(--border);
+    }
+
+    .faq-item.active .faq-trigger::after {
+      transform: rotate(45deg);
+    }
+
+    .faq-item.active .faq-content {
+      padding: 20px;
+      max-height: 500px;
+      border-top-width: 1px;
+    }
+
+    /* Workflow Diagram CSS */
+    .diagram {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin: 40px 0;
+      padding: 30px;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .diagram-node {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-family: var(--font-heading);
+      font-weight: 600;
+      color: var(--text-primary);
+      text-align: center;
+      min-width: 220px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .diagram-node.highlight {
+      border-color: var(--accent);
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+    }
+
+    .diagram-arrow {
+      width: 2px;
+      height: 30px;
+      background-color: var(--accent);
+      position: relative;
+    }
+
+    .diagram-arrow::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: -4px;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid var(--accent);
+    }
+
+    .diagram-branches {
+      display: flex;
+      gap: 60px;
+      width: 100%;
+      justify-content: center;
+      position: relative;
+    }
+
+    .diagram-branch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 100px;
+      padding: 40px 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="badge">Project Kavach (कवच) — Workstation USB Shield</div>
+      <h1 class="title">Kavach</h1>
+      <p class="subtitle">A robust, offline, double-PIN-gated Windows Service and Desktop interface for workstation hardware security.</p>
+    </header>
+
+    <!-- Project Kavach Advantages & Lifecycle -->
+    <section class="grid" style="margin-top: 60px;">
+      <div>
+        <h2>Why Kavach: Key Advantages & Custom Iteration</h2>
+        <p><strong>Kavach</strong> (derived from the Sanskrit word <em>कवच</em> meaning "Armor" or "Shield") is a custom-engineered endpoint protection tool. Because Kavach is our proprietary software, we have complete control over its execution environment, security architecture, and future roadmap.</p>
+        
+        <h3>Core Advantages</h3>
+        <ul>
+          <li><strong>No Vendor Lock-in or Licensing Fees:</strong> Deployable across 50+ workstations with zero operational overhead or license subscriptions.</li>
+          <li><strong>100% Data Sovereignty:</strong> Offline design ensures that no telemetry, system logs, or user credentials ever leave the local machine.</li>
+          <li><strong>Bloat-Free Performance:</strong> A highly optimized, lightweight C# Windows Service that consumes negligible RAM/CPU, unlike standard heavy commercial EDR agents.</li>
+          <li><strong>Custom Feature Extensibility:</strong> Since we own the codebase, we will continuously iterate, adding next-generation features tailored to our exact security policies.</li>
+        </ul>
+      </div>
+
+      <div class="card card-accent">
+        <h3 style="margin-top: 0;">Our Roadmap: Future Iterations</h3>
+        <p>Kavach is built as a modular framework. In future updates, we will actively implement:</p>
+        <div style="margin: 20px 0; border-top: 1px solid var(--border); padding-top: 20px;">
+          <p style="font-size: 0.9rem; margin-bottom: 8px;"><strong style="color: var(--text-primary)">V2.0:</strong> Automatic Local Group Policy WPD integration (MTP Smartphone Blocking).</p>
+          <p style="font-size: 0.9rem; margin-bottom: 8px;"><strong style="color: var(--text-primary)">V2.5:</strong> Bluetooth and Wi-Fi adapter class locking.</p>
+          <p style="font-size: 0.9rem; margin-bottom: 0;"><strong style="color: var(--text-primary)">V3.0:</strong> Centralized offline log collector for admin auditing.</p>
+        </div>
+    </section>
+
+    <!-- Market Alternatives & Disadvantages -->
+    <section>
+      <h2>Market Alternatives vs. Project Kavach</h2>
+      <p>Organizations looking to secure endpoints typically consider commercial software packages. Below is a comparison detailing why we chose to build <strong>Kavach</strong> instead of procuring standard market alternatives.</p>
+
+      <div class="grid grid-equal" style="margin-top: 30px;">
+        <div class="card">
+          <h3 style="margin-top: 0; color: var(--text-muted)">Commercial Endpoint DLP Products</h3>
+          <p>Common commercial solutions include <strong>DeviceLock</strong>, <strong>CoSoSys Endpoint Protector</strong>, and EDR suites like <strong>McAfee DLP</strong> or <strong>Symantec Endpoint Protection</strong>.</p>
+          
+          <h4 style="color: var(--text-primary); margin: 15px 0 5px 0;">Disadvantages of Commercial Products:</h4>
+          <ul>
+            <li style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Significant Licensing Costs:</strong> Commercial DLPs charge annual per-device subscriptions. For a fleet of 50+ PCs, this creates ongoing, recurring software expenses.</li>
+            <li style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Heavy Resource Footprint (Bloat):</strong> Commercial EDR and DLP agents run massive services that continually scan local files, analyze signatures, and hook deep APIs. This significantly degrades CPU performance on mid-range workstations.</li>
+            <li style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Telemetry & Privacy Risks:</strong> Most modern commercial tools sync logs, file names, or metadata to vendor cloud servers, creating data privacy concerns for sensitive environments.</li>
+            <li style="font-size: 0.95rem; margin-bottom: 0;"><strong>Vendor Lock-in:</strong> Inability to customize features or modify behavior if policies change without purchasing expensive custom add-ons.</li>
+          </ul>
+        </div>
+
+        <div class="card card-accent">
+          <h3 style="margin-top: 0; color: var(--accent-glow)">How Kavach Counters Them</h3>
+          <p>We chose to engineer <strong>Kavach</strong> as a custom, lightweight system to solve these exact friction points:</p>
+          
+          <h4 style="color: var(--text-primary); margin: 15px 0 5px 0;">1. Zero Licensing Cost</h4>
+          <p style="font-size: 0.95rem; margin-bottom: 12px;">Kavach is developed in-house. There are zero licensing fees, zero device thresholds, and no recurring renewal costs for our fleet.</p>
+
+          <h4 style="color: var(--text-primary); margin: 15px 0 5px 0;">2. Ultra-Lightweight Footprint</h4>
+          <p style="font-size: 0.95rem; margin-bottom: 12px;">Kavach performs driver-level Registry checks on a 5-second tick, bypassing heavy file-scanning or memory-hooking. It runs on a microscopic footprint of under 20MB RAM and 0% CPU, ensuring maximum performance for the user's workload.</p>
+
+          <h4 style="color: var(--text-primary); margin: 15px 0 5px 0;">3. Total Code Ownership & Extensibility</h4>
+          <p style="font-size: 0.95rem; margin-bottom: 12px;">Since we hold the full source code, we can easily adapt and extend the software (e.g. blocking smartphone transfers or adding custom offline log aggregation) to match our exact security guidelines without relying on third-party product roadmaps.</p>
+
+          <h4 style="color: var(--text-primary); margin: 15px 0 5px 0;">4. Absolute Offline Privacy</h4>
+          <p style="font-size: 0.95rem; margin-bottom: 0;">Kavach has no network stacks, no cloud APIs, and no telemetry. All validation, logging, and locks happen 100% locally on the device, ensuring perfect confidentiality.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Business Case -->
+    <section class="grid" style="margin-top: 60px;">
+      <div>
+        <h2>Business Directive & Security Value</h2>
+        <p>Uncontrolled USB and removable storage devices present one of the most critical vectors for **data exfiltration** and **ransomware entry** in corporate environments. <strong>Kavach</strong> provides workstation-level control, enabling system administrators to enforce security postures without complex Active Directory structures or expensive cloud management software.</p>
+        
+        <h3>Key Benefits for the Enterprise</h3>
+        <ul>
+          <li><strong>Zero Trust USB Policy:</strong> Removable storage is blocked by default at the driver level unless explicitly authorized.</li>
+          <li><strong>Audit Trail Integrity:</strong> Every start, configuration change, lock application, PIN validation attempt, and uninstall request is logged in an append-only database.</li>
+          <li><strong>No External Dependencies:</strong> Runs 100% offline. No cloud APIs, no telemetry, and no third-party network vulnerabilities.</li>
+          <li><strong>Tamper-Resistant Infrastructure:</strong> Background tasks run under the high-privilege Local System account, preventing standard users from killing or disabling the policy engine.</li>
+        </ul>
+      </div>
+
+      <div class="card card-accent">
+        <h3 style="margin-top: 0;">Deployment Specifications</h3>
+        <p>Targeted for workstation fleets requiring single-machine lockouts and manual maintenance windows.</p>
+        <div style="margin: 20px 0; border-top: 1px solid var(--border); padding-top: 20px;">
+          <p style="font-size: 0.9rem; margin-bottom: 8px;"><strong style="color: var(--text-primary)">Workstations:</strong> 50+ PCs</p>
+          <p style="font-size: 0.9rem; margin-bottom: 8px;"><strong style="color: var(--text-primary)">Target OS:</strong> Windows 10 / 11 (x64)</p>
+          <p style="font-size: 0.9rem; margin-bottom: 8px;"><strong style="color: var(--text-primary)">Enforcement:</strong> Driver-level Registry</p>
+          <p style="font-size: 0.9rem; margin-bottom: 0;"><strong style="color: var(--text-primary)">Auth Mechanism:</strong> Argon2id double-PIN</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Workflow Diagram -->
+    <section>
+      <h2>System Lifecycle & Authorization Workflow</h2>
+      <p>This flow maps how the background service acts as the central policy decision and enforcement point, while the GUI serves purely to input authorization signals.</p>
+      
+      <div class="diagram">
+        <div class="diagram-node highlight">Windows Administrator Elevated Install</div>
+        <div class="diagram-arrow"></div>
+        <div class="diagram-node">Desktop App: First-Run PIN Initialization</div>
+        <div class="diagram-arrow"></div>
+        <div class="diagram-node">Workstation USB storage locked by default</div>
+        <div class="diagram-arrow"></div>
+        <div class="diagram-branches">
+          <div class="diagram-branch">
+            <div class="badge">Temporary USB Access</div>
+            <div class="diagram-node">Enter 6-Digit Access PIN</div>
+            <div class="diagram-arrow"></div>
+            <div class="diagram-node highlight">15-minute Lock Timer Initiated</div>
+            <div class="diagram-arrow"></div>
+            <div class="diagram-node">Automatic Re-lock on Expiry</div>
+          </div>
+          <div class="diagram-branch">
+            <div class="badge">Administrative Modify / Uninstall</div>
+            <div class="diagram-node">Enter 6-Digit Modify/Uninstall PIN</div>
+            <div class="diagram-arrow"></div>
+            <div class="diagram-node highlight">DPAPI Uninstall Token Issued</div>
+            <div class="diagram-arrow"></div>
+            <div class="diagram-node">Run Elevated Uninstall Script</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Technical Architecture -->
+    <section>
+      <h2>Technical Deep Dive</h2>
+      <p>Kavach divides operations across two processes to enforce OS-level privilege boundaries.</p>
+
+      <div class="grid grid-equal">
+        <div class="card">
+          <h3 style="margin-top: 0; color: var(--accent-glow)">Privileged Windows Service</h3>
+          <p>The Service (<code>SecureDeviceControl.Service.exe</code>) runs as <code>SYSTEM</code>. It performs all cryptographic validations, hosts the Named Pipe server, and controls the storage driver registry key.</p>
+          <ul>
+            <li><strong>Driver Lockout:</strong> Every 5 seconds, the service checks the active unlock timer. If inactive, it enforces lock state by writing <code>Start = 4</code> (disabled) to the registry subkey:
+            <pre style="padding: 10px; margin: 10px 0; font-size: 0.8rem;">HKLM\SYSTEM\CurrentControlSet\Services\USBSTOR</pre></li>
+            <li><strong>SQLite Store:</strong> Houses activity logs and credentials under <code>%ProgramData%\SecureDeviceControl</code>, protected by NTFS ACLs allowing access only to <code>SYSTEM</code> and <code>Administrators</code>.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top: 0; color: var(--accent-glow)">Desktop Interface & IPC</h3>
+          <p>The Desktop UI (<code>SecureDeviceControl.Desktop.exe</code>) runs as WPF in the standard user's session, isolated from drivers.</p>
+          <ul>
+            <li><strong>Named Pipe IPC:</strong> Communicates with the service over the local named pipe <code>SecureDeviceControl.v1</code>.</li>
+            <li><strong>Pipe ACLs:</strong> Restricts control access:
+              <pre style="padding: 10px; margin: 10px 0; font-size: 0.8rem;">SYSTEM & Administrators -> FullControl
+Authenticated Users -> Read/Write</pre>
+            </li>
+            <li><strong>Strict JSON Schema:</strong> Deserialization is configured to disallow unmapped members, stopping buffer overflows and object injections.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 40px;">Cryptographic Hardening</h3>
+      <p>Passwords are never stored in plaintext or reversible formats. PIN verification uses top-tier cryptography:</p>
+      <ul>
+        <li><strong>Argon2id Hashing:</strong> PINs are processed using Argon2id with 64 MB Memory, 3 Iterations, and a Degree of Parallelism of 2. An independent 16-byte random salt is generated per password.</li>
+        <li><strong>Constant-Time Verification:</strong> To mitigate side-channel timing attacks, hashes are validated using <code>CryptographicOperations.FixedTimeEquals()</code>.</li>
+        <li><strong>Memory Safety:</strong> PIN byte arrays are zeroed out immediately after hashing using <code>CryptographicOperations.ZeroMemory()</code>.</li>
+        <li><strong>At-Rest Encryption:</strong> Hashed credentials stored in SQLite are encrypted using Windows DPAPI (Data Protection API) with a <code>LocalMachine</code> scope, bound by system integrity.</li>
+      </ul>
+    </section>
+
+    <!-- Installation & Setup -->
+    <section>
+      <h2>Step-by-Step Deployment Guide</h2>
+      <p>Follow these steps to deploy and lock down each of the 50 target workstations.</p>
+
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <h3>Extract Deployment Package</h3>
+          <p>Copy the generated <code>SecureDeviceControl-Release.zip</code> archive to the target workstation. It is recommended to extract it to a directory such as <code>C:\Program Files\SecureDeviceControl</code>.</p>
+          <pre># Extracted flat folder structure:
+# \SecureDeviceControl.Service.exe  <- High-privilege Background Service
+# \SecureDeviceControl.Desktop.exe  <- User-level Administrator GUI
+# \install-service.ps1              <- Install helper script (flat)
+# \uninstall-service.ps1            <- Token-based removal script (flat)</pre>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <h3>Install & Register the Windows Service</h3>
+          <p>Open an elevated PowerShell session (<strong>Run as Administrator</strong>) inside the extracted directory. If you are on a standard user account, Windows UAC will prompt you for your <strong>Windows Administrator credentials</strong>.</p>
+          <p>Run the installation script directly from the folder:</p>
+          <pre>Set-ExecutionPolicy Bypass -Scope Process -Force
+.\install-service.ps1</pre>
+          <p>This script sets directory permissions to <code>SYSTEM</code> and <code>Administrators</code> only, creates the service <code>SecureDeviceControl</code>, configures it to run under the local <code>SYSTEM</code> context with Automatic startup, and starts it.</p>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <h3>Launch Desktop App & Set PINs</h3>
+          <p>Launch <code>SecureDeviceControl.Desktop.exe</code>. Because the database has no PIN credentials, the app will display the **First-run PIN setup** screen.</p>
+          <p>Enter two different 6-digit PINs:</p>
+          <ol style="margin-left: 40px; margin-bottom: 20px; list-style-type: decimal;">
+            <li style="margin-bottom: 8px;"><strong>Pendrive Access PIN:</strong> Used by the admin or power users to unlock USB ports for a 15-minute window.</li>
+            <li style="margin-bottom: 8px;"><strong>Uninstall / Modify PIN:</strong> Used only when changing the service configuration, generating uninstall authorization, or removing the software.</li>
+          </ol>
+          <p>Click <strong>Initialize protection</strong>. The service will hash the PINs, store them securely in the database, and immediately apply the lock policy to the USB ports.</p>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">4</div>
+          <h3>Workstation Lockout Active</h3>
+          <p>The PC is now secure. If anyone plugs in an unauthorized removable drive, Windows will deny driver initialization, preventing the drive from showing up or transmitting files.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bypass Mitigation -->
+    <section>
+      <h2>Preventing Policy Bypasses (Station Hardening)</h2>
+      <p>Kavach effectively locks down direct USB mass storage access. However, determined users can use alternative vectors to exfiltrate files. Follow these steps to secure all bypass vectors on the 50 PCs.</p>
+
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <h3>Block Smartphones and Cameras (MTP/PTP Devices)</h3>
+          <p>Smartphones and tablets use WPD (Windows Portable Devices) driver stacks instead of standard USBSTOR, bypassing mass storage locks.</p>
+          <p><strong>Step-by-Step Mitigation:</strong></p>
+          <ol style="margin-left: 40px; margin-bottom: 20px; list-style-type: decimal;">
+            <li style="margin-bottom: 8px;">Press <code>Win + R</code>, type <code>gpedit.msc</code>, and hit Enter to open the Local Group Policy Editor.</li>
+            <li style="margin-bottom: 8px;">Navigate to: <code>Computer Configuration -> Administrative Templates -> System -> Removable Storage Access</code>.</li>
+            <li style="margin-bottom: 8px;">Locate <strong>"WPD Devices: Deny read access"</strong>, double-click it, set it to <strong>Enabled</strong>, and click OK.</li>
+            <li style="margin-bottom: 8px;">Locate <strong>"WPD Devices: Deny write access"</strong>, double-click it, set it to <strong>Enabled</strong>, and click OK.</li>
+          </ol>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <h3>Prevent Boot-Time Operating System Bypass (BIOS/UEFI Lock)</h3>
+          <p>Users can reboot the workstation into a Linux Live USB or Windows PE to view the C:\ drive and copy data without Windows policies active.</p>
+          <p><strong>Step-by-Step Mitigation:</strong></p>
+          <ol style="margin-left: 40px; margin-bottom: 20px; list-style-type: decimal;">
+            <li style="margin-bottom: 8px;"><strong>Enable BitLocker:</strong> Right-click the local disk (C:) in Explorer and select <strong>Turn on BitLocker</strong>. This encrypts the drive, making it fully unreadable outside of the authorized Windows environment.</li>
+            <li style="margin-bottom: 8px;"><strong>Disable External Booting:</strong> Reboot the PC, press the BIOS key (usually F2, F12, or Del), and navigate to the Boot priority menu. Disable USB and CD/DVD booting options.</li>
+            <li style="margin-bottom: 8px;"><strong>Set BIOS Password:</strong> Create a strong BIOS/UEFI Supervisor Password to prevent users from re-enabling USB booting.</li>
+          </ol>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <h3>Block USB Internet Tethering & Network Adapters</h3>
+          <p>Users can share their phone's mobile network connection via USB tethering to upload files directly to cloud drives, bypassing local firewalls.</p>
+          <p><strong>Step-by-Step Mitigation:</strong></p>
+          <ol style="margin-left: 40px; margin-bottom: 20px; list-style-type: decimal;">
+            <li style="margin-bottom: 8px;">Disable USB Remote NDIS tethering drivers by running the following commands in an elevated PowerShell session:
+              <pre style="margin-top: 10px;">Disable-PnpDevice -InstanceId (Get-PnpDevice -FriendlyName "*NDIS*").InstanceId -Confirm:$false</pre>
+            </li>
+            <li style="margin-bottom: 8px;">Additionally, block access to webmail and cloud storage (Google Drive, Dropbox, Mega) on the network router or DNS level.</li>
+          </ol>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">4</div>
+          <h3>Restrict Local Administrator Rights</h3>
+          <p>Users with local admin rights can stop the service, rewrite driver keys directly, or clear logs.</p>
+          <p><strong>Step-by-Step Mitigation:</strong></p>
+          <ol style="margin-left: 40px; margin-bottom: 20px; list-style-type: decimal;">
+            <li style="margin-bottom: 8px;">Ensure all local users are assigned <strong>Standard User</strong> accounts.</li>
+            <li style="margin-bottom: 8px;">Audit local administrators group by running:
+              <pre style="margin-top: 10px;">net localgroup administrators</pre>
+            </li>
+            <li style="margin-bottom: 8px;">Remove non-admin users from the group:
+              <pre style="margin-top: 10px;">net localgroup administrators [username] /delete</pre>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- USBGuard Comparison -->
+    <section>
+      <h2>USBGuard vs. Kavach</h2>
+      <p>A comparison highlighting target platform differences and workflow models.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>USBGuard (Linux)</th>
+            <th>Kavach (Windows)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Operating System</strong></td>
+            <td>Linux (via udev/kernel subsystem)</td>
+            <td>Windows 10 / 11 (Registry-driven driver filter)</td>
+          </tr>
+          <tr>
+            <td><strong>Enforcement Model</strong></td>
+            <td>Rule-based white/blacklists</td>
+            <td>PIN-gated time-lockout & service enforcement</td>
+          </tr>
+          <tr>
+            <td><strong>Local Interaction</strong></td>
+            <td>CLI / D-Bus APIs</td>
+            <td>WPF Desktop Application (Pipe-based)</td>
+          </tr>
+          <tr>
+            <td><strong>Internet/Cloud Dependency</strong></td>
+            <td>100% Offline</td>
+            <td>100% Offline (Local database & crypt system)</td>
+          </tr>
+          <tr>
+            <td><strong>Workstation Workflow</strong></td>
+            <td>Persistent rules configured in config files</td>
+            <td>15-minute temporary bypass window for user needs</td>
+          </tr>
+          <tr>
+            <td><strong>Tamper-resistance</strong></td>
+            <td>Root daemon authentication</td>
+            <td>Double PIN system + Local System Service isolation</td>
+          </tr>
+        </tbody>
+      </table>
+
+    <!-- Architect's Recommendation -->
+    <section>
+      <h2>Architect's Recommendation: Choosing the Right Strategy</h2>
+      <p>Deciding between <strong>Kavach</strong>, native Windows Group Policy (GPO), and cloud-managed systems (like Microsoft Intune) depends on your infrastructure scale, budget, and operational workflows.</p>
+
+      <!-- Comparative Table -->
+      <h3 style="margin-top: 40px; margin-bottom: 20px;">Comparison: Native Windows vs. Project Kavach</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Local Group Policy</th>
+            <th>Registry (<code>USBSTOR = 4</code>)</th>
+            <th>Microsoft Intune</th>
+            <th>Project Kavach (Our App)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Cost</strong></td>
+            <td>Free (Pro/Ent only)</td>
+            <td>Free (All Windows)</td>
+            <td>Paid Subscription</td>
+            <td><strong style="color: var(--accent-glow)">Free & Open Source</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Offline Setup</strong></td>
+            <td>Yes</td>
+            <td>Yes</td>
+            <td>No (requires cloud)</td>
+            <td><strong style="color: var(--accent-glow)">Yes</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Dynamic PIN Unlock</strong></td>
+            <td>No</td>
+            <td>No</td>
+            <td>No</td>
+            <td><strong style="color: var(--accent-glow)">Yes (15-min self-relocking)</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Audit Logs</strong></td>
+            <td>Limited</td>
+            <td>None</td>
+            <td>Cloud audit console</td>
+            <td><strong style="color: var(--accent-glow)">Yes (Local SQLite DB)</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Whitelist specific USBs</strong></td>
+            <td>No</td>
+            <td>No</td>
+            <td>Yes</td>
+            <td>Future roadmap (V2.5)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Disadvantages and Better Analysis -->
+      <div class="grid grid-equal" style="margin-top: 40px;">
+        <div class="card card-accent">
+          <h3 style="margin-top: 0; color: var(--accent-glow)">Why Kavach is Better than Native GPO / Registry</h3>
+          <p>While Windows provides native methods to block USB ports, they are designed for static environments and carry significant operational and security disadvantages in workstation fleets.</p>
+          
+          <h4 style="color: var(--text-primary); margin: 15px 0 5px 0;">1. Active Enforcement Loop vs. Static Registry</h4>
+          <p style="font-size: 0.95rem; margin-bottom: 15px;">With native Registry locking (<code>USBSTOR = 4</code>), a user who acquires temporary admin credentials can easily change the registry back to <code>3</code> to run a USB. There is no active agent running to re-enforce the lock. <strong>Kavach runs an active enforcement loop every 5 seconds</strong>. If the registry is manually changed, Kavach automatically overwrites it back to locked within 5 seconds, unless a verified PIN-unlock timer is running.</p>
+
+          <h4 style="color: var(--text-primary); margin: 15px 0 5px 0;">2. Automated Fail-Closed Workflow</h4>
+          <p style="font-size: 0.95rem; margin-bottom: 15px;">Under both Group Policy and Registry locks, to copy a file or install an updates package, an admin must log in, disable the block, copy the file, and then manually re-enable it. If the admin forgets to re-enable it, the PC remains permanently insecure. <strong>Kavach's 15-minute timer relocks automatically</strong>, removing human error from the lifecycle.</p>
+
+          <h4 style="color: var(--text-primary); margin: 15px 0 5px 0;">3. Windows Edition Portability</h4>
+          <p style="font-size: 0.95rem; margin-bottom: 0;">Local Group Policy (<code>gpedit.msc</code>) is blocked on Windows Home. In workstation environments running a mix of Home, Pro, and Enterprise licenses, GPO cannot be used consistently. Kavach runs directly on the .NET runtime, providing identical driver-level enforcement across <strong>all editions of Windows</strong>.</p>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top: 0; color: var(--text-muted)">Disadvantages of Native Methods</h3>
+          
+          <h4 style="color: var(--text-primary); margin: 20px 0 5px 0;">Disadvantages of Local Group Policy (GPO):</h4>
+          <ul>
+            <li style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Zero Self-Service:</strong> No dynamic bypass capability; requires manual administrative reconfiguration for temporary tasks.</li>
+            <li style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Version Lock:</strong> Blocked on Windows Home edition.</li>
+            <li style="font-size: 0.95rem; margin-bottom: 8px;"><strong>No local tamper logging:</strong> Fails to record individual policy violation attempts in a dedicated database.</li>
+          </ul>
+
+          <h4 style="color: var(--text-primary); margin: 20px 0 5px 0;">Disadvantages of Registry Locking:</h4>
+          <ul>
+            <li style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Trivial to Bypass:</strong> Any process running with administrative context can write a new registry value to unlock USBs permanently.</li>
+            <li style="font-size: 0.95rem; margin-bottom: 8px;"><strong>Prone to Human Error:</strong> Manual unlocking requires manual relocking. Leaving it unlocked by accident leaves the host vulnerable.</li>
+            <li style="font-size: 0.95rem; margin-bottom: 0;"><strong>Zero Auditing:</strong> Toggling registry keys does not log historical admin usage or validation attempts.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section>
+      <h2>Frequently Asked Questions (FAQ)</h2>
+      
+      <div class="faq-item">
+        <button class="faq-trigger">What happens if a workstation is rebooted during an active 15-minute unlock timer?</button>
+        <div class="faq-content">
+          <p>The unlock timer is held purely in-memory in the service coordinator state. If the workstation is restarted or the service crashes and restarts, it automatically fails-closed. The USB ports are immediately re-locked upon startup to prevent a reboot-based policy bypass.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-trigger">What if an administrator forgets both PINs? Is there a recovery mechanism?</button>
+        <div class="faq-content">
+          <p>No. By design, there is no back-door, cloud reset, or plain text recovery mechanism. This prevents hackers or standard users from exploiting recovery flows. To force remove the application without the Uninstall PIN, an administrator must boot the machine into a Windows PE / Recovery environment and manually remove the database and registry service keys.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-trigger">Can a standard Windows user kill the SecureDeviceControl.Service process?</button>
+        <div class="faq-content">
+          <p>No. Because the service is registered with Local System privileges and directory NTFS permissions are locked down, standard users receive an "Access Denied" error if they attempt to terminate the process or stop the service. Additionally, Windows Service control manager is configured to automatically restart the service if it crashes.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-trigger">Why did we design this using two executables instead of one single file?</button>
+        <div class="faq-content">
+          <p>Windows security policies restrict services from opening or interacting with user desktop sessions. A background service running as <code>SYSTEM</code> cannot have a graphical user interface (GUI). To provide a visual dashboard, the application uses a separated desktop client running as a standard user process, communicating securely with the service via local Named Pipes.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-trigger">How secure is the Named Pipe connection from spoofing or sniffing?</button>
+        <div class="faq-content">
+          <p>The named pipe uses a Windows Security Descriptor (ACL) that restricts access. Only authenticated local users can read and write to the pipe, and only Administrator/SYSTEM accounts can claim full control. Additionally, brute-force attempts over the named pipe are rate-limited, locking out request sources after 5 failed attempts.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p>&copy; 2026 Kavach. Built for security, simplicity, and offline workstation protection.</p>
+    </footer>
+  </div>
+
+  <script>
+    // FAQ Accordion Toggle Interaction
+    document.querySelectorAll('.faq-trigger').forEach(trigger => {
+      trigger.addEventListener('click', () => {
+        const item = trigger.parentNode;
+        const isActive = item.classList.contains('active');
+        
+        // Close other items
+        document.querySelectorAll('.faq-item').forEach(otherItem => {
+          otherItem.classList.remove('active');
+        });
+        
+        if (!isActive) {
+          item.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
