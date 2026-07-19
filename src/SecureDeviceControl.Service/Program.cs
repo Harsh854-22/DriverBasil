@@ -22,6 +22,8 @@ builder.Services.AddSingleton<DeviceControlDatabase>();
 builder.Services.AddSingleton<IUsbStoragePolicy, RegistryUsbStoragePolicy>();
 builder.Services.AddSingleton<IMobilePortPolicy, RegistryMobilePortPolicy>();
 builder.Services.AddSingleton<IWebFilterPolicy, HostsWebFilterPolicy>();
+builder.Services.AddSingleton<SecureDeviceControl.Infrastructure.Vpn.IVpnFilterPolicy, SecureDeviceControl.Infrastructure.Vpn.VpnFilterPolicy>();
+builder.Services.AddSingleton<RestrictedAccessBlockServer>();
 builder.Services.AddSingleton<IRemovableDriveMonitor, RemovableDriveMonitor>();
 builder.Services.AddSingleton<ICloudRepository, PostgresCloudRepository>();
 builder.Services.AddSingleton<IWindowsAccountManager, WindowsAccountManager>();

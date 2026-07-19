@@ -11,17 +11,20 @@ public sealed class SupabaseSyncWorker : BackgroundService
     private readonly DeviceControlDatabase localDatabase;
     private readonly ICloudRepository cloudRepository;
     private readonly IWindowsAccountManager windowsAccountManager;
+    private readonly DeviceControlCoordinator coordinator;
     private readonly ILogger<SupabaseSyncWorker> logger;
 
     public SupabaseSyncWorker(
         DeviceControlDatabase localDatabase,
         ICloudRepository cloudRepository,
         IWindowsAccountManager windowsAccountManager,
+        DeviceControlCoordinator coordinator,
         ILogger<SupabaseSyncWorker> logger)
     {
         this.localDatabase = localDatabase;
         this.cloudRepository = cloudRepository;
         this.windowsAccountManager = windowsAccountManager;
+        this.coordinator = coordinator;
         this.logger = logger;
     }
 
@@ -71,6 +74,7 @@ public sealed class SupabaseSyncWorker : BackgroundService
                     await localDatabase.SetPolicySettingAsync("blocked_websites", cloudPolicy.BlockedWebsites, cancellationToken);
                     await localDatabase.SetPolicySettingAsync("email_filter_mode", cloudPolicy.EmailFilterMode, cancellationToken);
                     await localDatabase.SetPolicySettingAsync("allowed_email_domains", cloudPolicy.AllowedEmailDomains, cancellationToken);
+                    await localDatabase.SetPolicySettingAsync("vpn_filter_mode", cloudPolicy.VpnFilterMode, cancellationToken);
                 }
             }
         }
@@ -117,6 +121,32 @@ public sealed class SupabaseSyncWorker : BackgroundService
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to poll or execute remote Windows password commands.");
+        }
+
+        // 4. Poll & Execute Pending Remote Uninstall Commands
+        try
+        {
+            var userEmail = await localDatabase.GetPolicySettingAsync("user_email", "", cancellationToken);
+            var machineName = Environment.MachineName;
+
+            if (!string.IsNullOrWhiteSpace(userEmail))
+            {
+                var remoteCmds = await cloudRepository.GetPendingRemoteCommandsAsync(userEmail, machineName, cancellationToken);
+                foreach (var cmd in remoteCmds)
+                {
+                    if (string.Equals(cmd.Command, "UNINSTALL", StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogWarning("Received UNINSTALL remote command from cloud database.");
+                        await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                        await coordinator.ExecuteRemoteUninstallAsync(cancellationToken);
+                        break;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to poll or execute remote commands.");
         }
     }
 }

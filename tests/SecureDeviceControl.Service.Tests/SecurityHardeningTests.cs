@@ -25,6 +25,8 @@ public sealed class SecurityHardeningTests : IDisposable
     private readonly TestUsbStoragePolicy usbPolicy;
     private readonly TestMobilePortPolicy mobilePolicy;
     private readonly TestWebFilterPolicy webPolicy;
+    private readonly TestVpnFilterPolicy vpnPolicy;
+    private readonly RestrictedAccessBlockServer blockServer;
     private readonly TestCloudRepository cloudRepository;
     private readonly TestRemovableDriveMonitor driveMonitor;
     private readonly MutableTimeProvider timeProvider;
@@ -43,6 +45,9 @@ public sealed class SecurityHardeningTests : IDisposable
         usbPolicy = new TestUsbStoragePolicy();
         mobilePolicy = new TestMobilePortPolicy();
         webPolicy = new TestWebFilterPolicy();
+        vpnPolicy = new TestVpnFilterPolicy();
+        var blockLogger = new TestLogger<RestrictedAccessBlockServer>();
+        blockServer = new RestrictedAccessBlockServer(blockLogger);
         cloudRepository = new TestCloudRepository();
         driveMonitor = new TestRemovableDriveMonitor();
         timeProvider = new MutableTimeProvider(DateTimeOffset.Parse("2026-07-09T12:00:00Z"));
@@ -56,6 +61,8 @@ public sealed class SecurityHardeningTests : IDisposable
             usbPolicy,
             mobilePolicy,
             webPolicy,
+            vpnPolicy,
+            blockServer,
             cloudRepository,
             driveMonitor,
             paths,
@@ -519,6 +526,13 @@ public sealed class SecurityHardeningTests : IDisposable
         public Task<IReadOnlyList<WindowsPasswordCommand>> GetPendingWindowsPasswordCommandsAsync(string emailId, string machineName, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WindowsPasswordCommand>>(Array.Empty<WindowsPasswordCommand>());
         public Task UpdateWindowsPasswordCommandStatusAsync(long commandId, string status, string? errorMessage, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<SecureDeviceControl.Infrastructure.Updates.SoftwareUpdateModel?> GetLatestSoftwareUpdateAsync(string machineName, CancellationToken cancellationToken) => Task.FromResult<SecureDeviceControl.Infrastructure.Updates.SoftwareUpdateModel?>(null);
+        public Task<IReadOnlyList<RemoteCommand>> GetPendingRemoteCommandsAsync(string emailId, string machineName, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<RemoteCommand>>(Array.Empty<RemoteCommand>());
+        public Task UpdateRemoteCommandStatusAsync(long commandId, string status, string? errorMessage, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class TestVpnFilterPolicy : SecureDeviceControl.Infrastructure.Vpn.IVpnFilterPolicy
+    {
+        public Task ApplyVpnFilterPolicyAsync(SecureDeviceControl.Infrastructure.Vpn.VpnFilterMode mode, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class TestRemovableDriveMonitor : IRemovableDriveMonitor

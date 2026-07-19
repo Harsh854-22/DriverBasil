@@ -88,8 +88,31 @@ public sealed class PostgresCloudRepository : ICloudRepository
                 target_machine TEXT NOT NULL DEFAULT 'ALL',
                 released_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+
+            CREATE TABLE IF NOT EXISTS remote_commands (
+                id BIGSERIAL PRIMARY KEY,
+                email_id TEXT NOT NULL,
+                machine_name TEXT NOT NULL,
+                command TEXT NOT NULL,
+                payload TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                error_message TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                executed_at TIMESTAMPTZ
+            );
             """;
         await createCmd.ExecuteNonQueryAsync(cancellationToken);
+
+        try
+        {
+            await using var alterCmd3 = connection.CreateCommand();
+            alterCmd3.CommandText = "ALTER TABLE device_policies ADD COLUMN IF NOT EXISTS vpn_filter_mode TEXT NOT NULL DEFAULT 'OFF';";
+            await alterCmd3.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch
+        {
+            // Best effort migration
+        }
 
         try
         {
@@ -209,7 +232,7 @@ public sealed class PostgresCloudRepository : ICloudRepository
 
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = """
-            SELECT email_id, machine_name, web_filter_mode, allowed_websites, blocked_websites, email_filter_mode, allowed_email_domains
+            SELECT email_id, machine_name, web_filter_mode, allowed_websites, blocked_websites, email_filter_mode, allowed_email_domains, COALESCE(vpn_filter_mode, 'OFF')
             FROM device_policies
             WHERE email_id = @email_id
             LIMIT 1;
@@ -226,7 +249,8 @@ public sealed class PostgresCloudRepository : ICloudRepository
                 reader.GetString(3),
                 reader.GetString(4),
                 reader.GetString(5),
-                reader.GetString(6));
+                reader.GetString(6),
+                reader.GetString(7));
         }
 
         return null;
@@ -347,5 +371,81 @@ public sealed class PostgresCloudRepository : ICloudRepository
         }
 
         return null;
+    }
+
+    public async Task<IReadOnlyList<RemoteCommand>> GetPendingRemoteCommandsAsync(
+        string emailId,
+        string machineName,
+        CancellationToken cancellationToken)
+    {
+        var list = new List<RemoteCommand>();
+        var connStr = GetConnectionString();
+        if (string.IsNullOrWhiteSpace(connStr) || connStr.Contains("[YOUR-PASSWORD]"))
+        {
+            return list;
+        }
+
+        await EnsureSchemaAsync(cancellationToken);
+
+        await using var connection = new NpgsqlConnection(connStr);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            SELECT id, email_id, machine_name, command, payload, status, error_message
+            FROM remote_commands
+            WHERE email_id = @email_id AND machine_name = @machine_name AND status = 'PENDING'
+            ORDER BY id ASC;
+            """;
+        cmd.Parameters.AddWithValue("@email_id", emailId.ToLowerInvariant().Trim());
+        cmd.Parameters.AddWithValue("@machine_name", machineName);
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            list.Add(new RemoteCommand(
+                reader.GetInt64(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6)));
+        }
+
+        return list;
+    }
+
+    public async Task UpdateRemoteCommandStatusAsync(
+        long commandId,
+        string status,
+        string? errorMessage,
+        CancellationToken cancellationToken)
+    {
+        var connStr = GetConnectionString();
+        if (string.IsNullOrWhiteSpace(connStr) || connStr.Contains("[YOUR-PASSWORD]"))
+        {
+            return;
+        }
+
+        await EnsureSchemaAsync(cancellationToken);
+
+        await using var connection = new NpgsqlConnection(connStr);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            UPDATE remote_commands
+            SET status = @status,
+                error_message = @error_message,
+                executed_at = @now
+            WHERE id = @id;
+            """;
+        cmd.Parameters.AddWithValue("@id", commandId);
+        cmd.Parameters.AddWithValue("@status", status);
+        cmd.Parameters.AddWithValue("@error_message", (object?)errorMessage ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow);
+
+        await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 }

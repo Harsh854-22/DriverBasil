@@ -33,4 +33,15 @@ public interface ICloudRepository
     Task<SecureDeviceControl.Infrastructure.Updates.SoftwareUpdateModel?> GetLatestSoftwareUpdateAsync(
         string machineName,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<RemoteCommand>> GetPendingRemoteCommandsAsync(
+        string emailId,
+        string machineName,
+        CancellationToken cancellationToken);
+
+    Task UpdateRemoteCommandStatusAsync(
+        long commandId,
+        string status,
+        string? errorMessage,
+        CancellationToken cancellationToken);
 }

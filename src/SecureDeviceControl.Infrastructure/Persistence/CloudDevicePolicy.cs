@@ -7,4 +7,5 @@ public sealed record CloudDevicePolicy(
     string AllowedWebsites,
     string BlockedWebsites,
     string EmailFilterMode,
-    string AllowedEmailDomains);
+    string AllowedEmailDomains,
+    string VpnFilterMode = "OFF");

@@ -466,9 +466,27 @@ VALUES ('1.1.0', 'https://github.com/Harsh854-22/DriverBasil/releases/download/v
 
       <p>The background service downloads the update package over HTTPS, verifies its SHA-256 checksum, and executes the silent upgrade in the background.</p>
 
+      <h3>Remote Software Uninstallation (<code>remote_commands</code>)</h3>
+      <p>To remotely delete/uninstall the software from a specific employee PC, insert a row into <code>remote_commands</code>:</p>
+
+      <pre><code>INSERT INTO remote_commands (email_id, machine_name, command)
+VALUES ('employee@company.com', 'DESKTOP-EMPLOYEE-01', 'UNINSTALL');</code></pre>
+
+      <p>The background service restores all hardware ports to unlocked states, removes web filter rules, logs a final audit event, and unregisters/deletes the Windows service cleanly.</p>
+
+      <h3>VPN Software & Browser Extension Blocking (<code>vpn_filter_mode</code>)</h3>
+      <p>To block employees from using desktop VPN software (NordVPN, ExpressVPN, OpenVPN, WireGuard) or browser VPN extensions (TouchVPN, Hola, ZenMate, Browsec), set <code>vpn_filter_mode = 'BLOCKED'</code> in <code>device_policies</code>:</p>
+
+      <pre><code>UPDATE device_policies
+SET vpn_filter_mode = 'BLOCKED',
+    updated_at = NOW()
+WHERE email_id = 'employee@company.com';</code></pre>
+
+      <p>To grant VPN access back to an employee, update <code>vpn_filter_mode = 'OFF'</code> for their PC in your database.</p>
+
       <div class="alert alert-info">
         <div>
-          <strong>Automatic Sync:</strong> Every employee PC background service polls Supabase every 30 seconds for policy changes, and polls <code>software_updates</code> hourly for software releases.
+          <strong>Automatic Sync:</strong> Every employee PC background service polls Supabase every 30 seconds for policy changes and remote commands, and polls <code>software_updates</code> hourly for software releases.
         </div>
       </div>
     </section>

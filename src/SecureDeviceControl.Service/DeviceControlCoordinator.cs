@@ -8,6 +8,7 @@ using SecureDeviceControl.Infrastructure.Persistence;
 using SecureDeviceControl.Infrastructure.Security;
 using SecureDeviceControl.Infrastructure.Usb;
 using SecureDeviceControl.Infrastructure.Web;
+using SecureDeviceControl.Infrastructure.Vpn;
 using SecureDeviceControl.Service.Ipc;
 using SecureDeviceControl.Shared.Contracts;
 using SecureDeviceControl.Shared.Ipc;
@@ -25,6 +26,8 @@ public sealed class DeviceControlCoordinator
     private readonly IUsbStoragePolicy usbStoragePolicy;
     private readonly IMobilePortPolicy mobilePortPolicy;
     private readonly IWebFilterPolicy webFilterPolicy;
+    private readonly IVpnFilterPolicy vpnFilterPolicy;
+    private readonly RestrictedAccessBlockServer blockServer;
     private readonly ICloudRepository cloudRepository;
     private readonly IRemovableDriveMonitor removableDriveMonitor;
     private readonly ProgramDataPaths paths;
@@ -42,6 +45,8 @@ public sealed class DeviceControlCoordinator
         IUsbStoragePolicy usbStoragePolicy,
         IMobilePortPolicy mobilePortPolicy,
         IWebFilterPolicy webFilterPolicy,
+        IVpnFilterPolicy vpnFilterPolicy,
+        RestrictedAccessBlockServer blockServer,
         ICloudRepository cloudRepository,
         IRemovableDriveMonitor removableDriveMonitor,
         ProgramDataPaths paths,
@@ -55,6 +60,8 @@ public sealed class DeviceControlCoordinator
         this.usbStoragePolicy = usbStoragePolicy;
         this.mobilePortPolicy = mobilePortPolicy;
         this.webFilterPolicy = webFilterPolicy;
+        this.vpnFilterPolicy = vpnFilterPolicy;
+        this.blockServer = blockServer;
         this.cloudRepository = cloudRepository;
         this.removableDriveMonitor = removableDriveMonitor;
         this.paths = paths;
@@ -66,6 +73,10 @@ public sealed class DeviceControlCoordinator
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         await database.InitializeAsync(cancellationToken);
+        blockServer.StartServer(8085);
+        var userEmail = await database.GetPolicySettingAsync("user_email", "", cancellationToken);
+        blockServer.UpdateUserContext(userEmail, Environment.MachineName);
+
         await ApplyPolicyStatesAsync(cancellationToken);
         removableDriveMonitor.StartMonitoring((fileName, sizeInBytes, driveLetter) =>
         {
@@ -318,6 +329,9 @@ public sealed class DeviceControlCoordinator
             var blockedWebList = blockedWeb.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var allowedEmailList = allowedEmail.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+            var vpnModeStr = await database.GetPolicySettingAsync("vpn_filter_mode", "OFF", cancellationToken);
+            var vpnMode = Enum.TryParse<VpnFilterMode>(vpnModeStr, ignoreCase: true, out var vm) ? vm : VpnFilterMode.Off;
+
             await webFilterPolicy.ApplyWebFilterPolicyAsync(
                 webMode,
                 allowedWebList,
@@ -325,6 +339,8 @@ public sealed class DeviceControlCoordinator
                 emailMode,
                 allowedEmailList,
                 cancellationToken);
+
+            await vpnFilterPolicy.ApplyVpnFilterPolicyAsync(vpnMode, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -334,6 +350,34 @@ public sealed class DeviceControlCoordinator
         finally
         {
             gate.Release();
+        }
+    }
+
+    public async Task ExecuteRemoteUninstallAsync(CancellationToken cancellationToken)
+    {
+        logger.LogWarning("Executing remote software uninstallation command...");
+
+        await usbStoragePolicy.SetUsbStorageLockedAsync(locked: false, cancellationToken);
+        await mobilePortPolicy.SetMobilePortLockedAsync(locked: false, cancellationToken);
+        await webFilterPolicy.ApplyWebFilterPolicyAsync(
+            WebFilterMode.Off, Array.Empty<string>(), Array.Empty<string>(),
+            EmailFilterMode.Off, Array.Empty<string>(), cancellationToken);
+
+        await database.AppendActivityLogAsync(
+            ActivityLogEventType.UninstallAuthorizationIssued,
+            "Remote software uninstallation command executed. Software unregistered and ports unlocked.",
+            cancellationToken);
+
+        if (OperatingSystem.IsWindows())
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c timeout /t 2 && sc stop \"Secure Device Control\" && sc delete \"Secure Device Control\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            System.Diagnostics.Process.Start(startInfo);
         }
     }
 
