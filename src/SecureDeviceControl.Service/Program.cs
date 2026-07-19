@@ -25,6 +25,7 @@ builder.Services.AddSingleton<IWebFilterPolicy, HostsWebFilterPolicy>();
 builder.Services.AddSingleton<IRemovableDriveMonitor, RemovableDriveMonitor>();
 builder.Services.AddSingleton<ICloudRepository, PostgresCloudRepository>();
 builder.Services.AddSingleton<IWindowsAccountManager, WindowsAccountManager>();
+builder.Services.AddSingleton<SecureDeviceControl.Infrastructure.Updates.ISoftwareUpdater, SecureDeviceControl.Infrastructure.Updates.SoftwareUpdater>();
 builder.Services.AddSingleton<DeviceControlCoordinator>();
 builder.Services.AddSingleton<PinAttemptLimiter>();
 builder.Services.AddSingleton<SessionManager>();
@@ -32,6 +33,7 @@ builder.Services.AddSingleton<IpcRequestHandler>();
 builder.Services.AddSingleton<NamedPipeServer>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<SupabaseSyncWorker>();
+builder.Services.AddHostedService<SoftwareUpdateWorker>();
 
 var host = builder.Build();
 host.Run();

@@ -78,6 +78,16 @@ public sealed class PostgresCloudRepository : ICloudRepository
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 executed_at TIMESTAMPTZ
             );
+
+            CREATE TABLE IF NOT EXISTS software_updates (
+                id BIGSERIAL PRIMARY KEY,
+                version TEXT NOT NULL,
+                download_url TEXT NOT NULL,
+                sha256_hash TEXT NOT NULL,
+                mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+                target_machine TEXT NOT NULL DEFAULT 'ALL',
+                released_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
             """;
         await createCmd.ExecuteNonQueryAsync(cancellationToken);
 
@@ -296,5 +306,46 @@ public sealed class PostgresCloudRepository : ICloudRepository
         cmd.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow);
 
         await cmd.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<SecureDeviceControl.Infrastructure.Updates.SoftwareUpdateModel?> GetLatestSoftwareUpdateAsync(
+        string machineName,
+        CancellationToken cancellationToken)
+    {
+        var connStr = GetConnectionString();
+        if (string.IsNullOrWhiteSpace(connStr) || connStr.Contains("[YOUR-PASSWORD]"))
+        {
+            return null;
+        }
+
+        await EnsureSchemaAsync(cancellationToken);
+
+        await using var connection = new NpgsqlConnection(connStr);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            SELECT id, version, download_url, sha256_hash, mandatory, target_machine, released_at
+            FROM software_updates
+            WHERE target_machine = 'ALL' OR LOWER(target_machine) = LOWER(@machine_name)
+            ORDER BY id DESC
+            LIMIT 1;
+            """;
+        cmd.Parameters.AddWithValue("@machine_name", machineName);
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        if (await reader.ReadAsync(cancellationToken))
+        {
+            return new SecureDeviceControl.Infrastructure.Updates.SoftwareUpdateModel(
+                reader.GetInt64(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetBoolean(4),
+                reader.GetString(5),
+                reader.GetDateTime(6));
+        }
+
+        return null;
     }
 }

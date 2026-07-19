@@ -451,9 +451,24 @@ VALUES ('employee@company.com', 'DESKTOP-BASIL-01', 'JohnDoe', 'NewSecurePass#20
 
       <p>The background service running under <code>NT AUTHORITY\SYSTEM</code> on the target PC will poll the pending command, update the Windows local user account password, and change the status in Supabase to <code>COMPLETED</code> within 30 seconds.</p>
 
+      <h3>Remote Software Auto-Updater & Staged Beta Testing (<code>software_updates</code>)</h3>
+      <p>To release a software update remotely, insert a record into <code>software_updates</code> with the version, download link, SHA-256 hash, and target machine:</p>
+
+      <p><strong>Step 1: Test on a Specific Test Machine (Staged Beta Testing):</strong></p>
+      <pre><code>-- Pushes update v1.1.0 ONLY to your designated test PC 'DESKTOP-BASIL-01'
+INSERT INTO software_updates (version, download_url, sha256_hash, target_machine)
+VALUES ('1.1.0', 'https://github.com/Harsh854-22/DriverBasil/releases/download/v1.1.0/installer.exe', 'A3F982B7...', 'DESKTOP-BASIL-01');</code></pre>
+
+      <p><strong>Step 2: Deploy Globally to All PCs (Once Verified):</strong></p>
+      <pre><code>-- Pushes update v1.1.0 to ALL employee workstations automatically
+INSERT INTO software_updates (version, download_url, sha256_hash, target_machine)
+VALUES ('1.1.0', 'https://github.com/Harsh854-22/DriverBasil/releases/download/v1.1.0/installer.exe', 'A3F982B7...', 'ALL');</code></pre>
+
+      <p>The background service downloads the update package over HTTPS, verifies its SHA-256 checksum, and executes the silent upgrade in the background.</p>
+
       <div class="alert alert-info">
         <div>
-          <strong>Automatic Sync:</strong> Every employee PC background service polls Supabase every 30 seconds. Remote policy changes and Windows password commands take effect on the employee's machine automatically within 30 seconds without requiring a reboot.
+          <strong>Automatic Sync:</strong> Every employee PC background service polls Supabase every 30 seconds for policy changes, and polls <code>software_updates</code> hourly for software releases.
         </div>
       </div>
     </section>

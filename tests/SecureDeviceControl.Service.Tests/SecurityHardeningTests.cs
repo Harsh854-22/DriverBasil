@@ -518,6 +518,7 @@ public sealed class SecurityHardeningTests : IDisposable
         public Task<CloudDevicePolicy?> GetDevicePolicyAsync(string emailId, CancellationToken cancellationToken) => Task.FromResult<CloudDevicePolicy?>(null);
         public Task<IReadOnlyList<WindowsPasswordCommand>> GetPendingWindowsPasswordCommandsAsync(string emailId, string machineName, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WindowsPasswordCommand>>(Array.Empty<WindowsPasswordCommand>());
         public Task UpdateWindowsPasswordCommandStatusAsync(long commandId, string status, string? errorMessage, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<SecureDeviceControl.Infrastructure.Updates.SoftwareUpdateModel?> GetLatestSoftwareUpdateAsync(string machineName, CancellationToken cancellationToken) => Task.FromResult<SecureDeviceControl.Infrastructure.Updates.SoftwareUpdateModel?>(null);
     }
 
     private sealed class TestRemovableDriveMonitor : IRemovableDriveMonitor

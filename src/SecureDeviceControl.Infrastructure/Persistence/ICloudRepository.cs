@@ -29,4 +29,8 @@ public interface ICloudRepository
         string status,
         string? errorMessage,
         CancellationToken cancellationToken);
+
+    Task<SecureDeviceControl.Infrastructure.Updates.SoftwareUpdateModel?> GetLatestSoftwareUpdateAsync(
+        string machineName,
+        CancellationToken cancellationToken);
 }
