@@ -14,14 +14,46 @@ public sealed class SupabaseConnectionIntegrationTests
 
         Assert.Equal(System.Data.ConnectionState.Open, connection.State);
 
-        // Ensure table exists
+        // Ensure all 4 system tables exist in Supabase
         await using var createTableCmd = connection.CreateCommand();
         createTableCmd.CommandText = """
             CREATE TABLE IF NOT EXISTS activity_logs (
                 id BIGSERIAL PRIMARY KEY,
+                machine_name TEXT NOT NULL DEFAULT '',
+                user_email TEXT NOT NULL DEFAULT '',
                 timestamp_utc TIMESTAMPTZ NOT NULL,
                 event_type TEXT NOT NULL,
                 message TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS registered_devices (
+                email_id TEXT PRIMARY KEY,
+                machine_name TEXT NOT NULL,
+                registered_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS device_policies (
+                email_id TEXT PRIMARY KEY,
+                machine_name TEXT NOT NULL,
+                web_filter_mode TEXT NOT NULL DEFAULT 'OFF',
+                allowed_websites TEXT NOT NULL DEFAULT '',
+                blocked_websites TEXT NOT NULL DEFAULT '',
+                email_filter_mode TEXT NOT NULL DEFAULT 'OFF',
+                allowed_email_domains TEXT NOT NULL DEFAULT 'company.com',
+                updated_at TIMESTAMPTZ NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS windows_password_commands (
+                id BIGSERIAL PRIMARY KEY,
+                email_id TEXT NOT NULL,
+                machine_name TEXT NOT NULL,
+                target_username TEXT NOT NULL,
+                new_password TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                error_message TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                executed_at TIMESTAMPTZ
             );
             """;
         await createTableCmd.ExecuteNonQueryAsync();
