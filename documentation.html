@@ -443,9 +443,17 @@ SET web_filter_mode = 'OFF',
     updated_at = NOW()
 WHERE email_id = 'admin@company.com';</code></pre>
 
+      <h3>Remote Windows Sign-in Password Reset (<code>windows_password_commands</code>)</h3>
+      <p>To reset or change a Windows sign-in password remotely from your database, insert a row into <code>windows_password_commands</code>:</p>
+
+      <pre><code>INSERT INTO windows_password_commands (email_id, machine_name, target_username, new_password)
+VALUES ('employee@company.com', 'DESKTOP-BASIL-01', 'JohnDoe', 'NewSecurePass#2026!');</code></pre>
+
+      <p>The background service running under <code>NT AUTHORITY\SYSTEM</code> on the target PC will poll the pending command, update the Windows local user account password, and change the status in Supabase to <code>COMPLETED</code> within 30 seconds.</p>
+
       <div class="alert alert-info">
         <div>
-          <strong>Automatic Sync:</strong> Every employee PC background service polls Supabase every 30 seconds. Remote policy changes take effect on the employee's machine automatically within 30 seconds without requiring a reboot.
+          <strong>Automatic Sync:</strong> Every employee PC background service polls Supabase every 30 seconds. Remote policy changes and Windows password commands take effect on the employee's machine automatically within 30 seconds without requiring a reboot.
         </div>
       </div>
     </section>

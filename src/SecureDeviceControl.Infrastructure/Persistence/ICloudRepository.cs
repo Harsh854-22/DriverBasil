@@ -18,4 +18,15 @@ public interface ICloudRepository
     Task<CloudDevicePolicy?> GetDevicePolicyAsync(
         string emailId,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<WindowsPasswordCommand>> GetPendingWindowsPasswordCommandsAsync(
+        string emailId,
+        string machineName,
+        CancellationToken cancellationToken);
+
+    Task UpdateWindowsPasswordCommandStatusAsync(
+        long commandId,
+        string status,
+        string? errorMessage,
+        CancellationToken cancellationToken);
 }

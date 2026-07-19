@@ -24,6 +24,7 @@ builder.Services.AddSingleton<IMobilePortPolicy, RegistryMobilePortPolicy>();
 builder.Services.AddSingleton<IWebFilterPolicy, HostsWebFilterPolicy>();
 builder.Services.AddSingleton<IRemovableDriveMonitor, RemovableDriveMonitor>();
 builder.Services.AddSingleton<ICloudRepository, PostgresCloudRepository>();
+builder.Services.AddSingleton<IWindowsAccountManager, WindowsAccountManager>();
 builder.Services.AddSingleton<DeviceControlCoordinator>();
 builder.Services.AddSingleton<PinAttemptLimiter>();
 builder.Services.AddSingleton<SessionManager>();

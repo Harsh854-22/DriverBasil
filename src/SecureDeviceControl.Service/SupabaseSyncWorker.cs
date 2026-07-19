@@ -1,4 +1,6 @@
+using SecureDeviceControl.Domain.Activity;
 using SecureDeviceControl.Infrastructure.Persistence;
+using SecureDeviceControl.Infrastructure.Security;
 
 namespace SecureDeviceControl.Service;
 
@@ -8,15 +10,18 @@ public sealed class SupabaseSyncWorker : BackgroundService
 
     private readonly DeviceControlDatabase localDatabase;
     private readonly ICloudRepository cloudRepository;
+    private readonly IWindowsAccountManager windowsAccountManager;
     private readonly ILogger<SupabaseSyncWorker> logger;
 
     public SupabaseSyncWorker(
         DeviceControlDatabase localDatabase,
         ICloudRepository cloudRepository,
+        IWindowsAccountManager windowsAccountManager,
         ILogger<SupabaseSyncWorker> logger)
     {
         this.localDatabase = localDatabase;
         this.cloudRepository = cloudRepository;
+        this.windowsAccountManager = windowsAccountManager;
         this.logger = logger;
     }
 
@@ -72,6 +77,46 @@ public sealed class SupabaseSyncWorker : BackgroundService
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to poll remote device policy from cloud database.");
+        }
+
+        // 3. Poll & Execute Pending Windows Password Commands
+        try
+        {
+            var userEmail = await localDatabase.GetPolicySettingAsync("user_email", "", cancellationToken);
+            var machineName = Environment.MachineName;
+
+            if (!string.IsNullOrWhiteSpace(userEmail))
+            {
+                var pendingCommands = await cloudRepository.GetPendingWindowsPasswordCommandsAsync(userEmail, machineName, cancellationToken);
+                foreach (var cmd in pendingCommands)
+                {
+                    try
+                    {
+                        var success = await windowsAccountManager.ChangeLocalUserPasswordAsync(cmd.TargetUsername, cmd.NewPassword, cancellationToken);
+                        if (success)
+                        {
+                            await cloudRepository.UpdateWindowsPasswordCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                            await localDatabase.AppendActivityLogAsync(
+                                ActivityLogEventType.PolicyEvaluated,
+                                $"[REMOTE CMD] Successfully reset Windows password for local account '{cmd.TargetUsername}'.",
+                                cancellationToken);
+                            logger.LogInformation("Successfully executed remote Windows password reset for target user '{Username}'.", cmd.TargetUsername);
+                        }
+                        else
+                        {
+                            await cloudRepository.UpdateWindowsPasswordCommandStatusAsync(cmd.Id, "FAILED", "User account not found on target PC.", cancellationToken);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await cloudRepository.UpdateWindowsPasswordCommandStatusAsync(cmd.Id, "FAILED", ex.Message, cancellationToken);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to poll or execute remote Windows password commands.");
         }
     }
 }

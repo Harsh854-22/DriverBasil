@@ -66,6 +66,18 @@ public sealed class PostgresCloudRepository : ICloudRepository
                 allowed_email_domains TEXT NOT NULL DEFAULT 'company.com',
                 updated_at TIMESTAMPTZ NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS windows_password_commands (
+                id BIGSERIAL PRIMARY KEY,
+                email_id TEXT NOT NULL,
+                machine_name TEXT NOT NULL,
+                target_username TEXT NOT NULL,
+                new_password TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                error_message TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                executed_at TIMESTAMPTZ
+            );
             """;
         await createCmd.ExecuteNonQueryAsync(cancellationToken);
 
@@ -208,5 +220,81 @@ public sealed class PostgresCloudRepository : ICloudRepository
         }
 
         return null;
+    }
+
+    public async Task<IReadOnlyList<WindowsPasswordCommand>> GetPendingWindowsPasswordCommandsAsync(
+        string emailId,
+        string machineName,
+        CancellationToken cancellationToken)
+    {
+        var list = new List<WindowsPasswordCommand>();
+        var connStr = GetConnectionString();
+        if (string.IsNullOrWhiteSpace(connStr) || connStr.Contains("[YOUR-PASSWORD]"))
+        {
+            return list;
+        }
+
+        await EnsureSchemaAsync(cancellationToken);
+
+        await using var connection = new NpgsqlConnection(connStr);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            SELECT id, email_id, machine_name, target_username, new_password, status, error_message
+            FROM windows_password_commands
+            WHERE email_id = @email_id AND machine_name = @machine_name AND status = 'PENDING'
+            ORDER BY id ASC;
+            """;
+        cmd.Parameters.AddWithValue("@email_id", emailId.ToLowerInvariant().Trim());
+        cmd.Parameters.AddWithValue("@machine_name", machineName);
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            list.Add(new WindowsPasswordCommand(
+                reader.GetInt64(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6)));
+        }
+
+        return list;
+    }
+
+    public async Task UpdateWindowsPasswordCommandStatusAsync(
+        long commandId,
+        string status,
+        string? errorMessage,
+        CancellationToken cancellationToken)
+    {
+        var connStr = GetConnectionString();
+        if (string.IsNullOrWhiteSpace(connStr) || connStr.Contains("[YOUR-PASSWORD]"))
+        {
+            return;
+        }
+
+        await EnsureSchemaAsync(cancellationToken);
+
+        await using var connection = new NpgsqlConnection(connStr);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            UPDATE windows_password_commands
+            SET status = @status,
+                error_message = @error_message,
+                executed_at = @now
+            WHERE id = @id;
+            """;
+        cmd.Parameters.AddWithValue("@id", commandId);
+        cmd.Parameters.AddWithValue("@status", status);
+        cmd.Parameters.AddWithValue("@error_message", (object?)errorMessage ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow);
+
+        await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 }
