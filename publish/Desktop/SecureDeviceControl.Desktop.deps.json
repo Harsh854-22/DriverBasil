@@ -1,0 +1,40 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0/win-x64",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {},
+    ".NETCoreApp,Version=v8.0/win-x64": {
+      "SecureDeviceControl.Desktop/1.0.0": {
+        "dependencies": {
+          "SecureDeviceControl.Shared": "1.0.0"
+        },
+        "runtime": {
+          "SecureDeviceControl.Desktop.dll": {}
+        }
+      },
+      "SecureDeviceControl.Shared/1.0.0": {
+        "runtime": {
+          "SecureDeviceControl.Shared.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "SecureDeviceControl.Desktop/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SecureDeviceControl.Shared/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

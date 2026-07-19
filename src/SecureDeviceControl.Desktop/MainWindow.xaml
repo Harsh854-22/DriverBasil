@@ -110,7 +110,7 @@
                        Foreground="#9CA3AF"
                        Margin="0,4,0,16" />
             <TextBlock Text="User Email ID" />
-            <TextBox x:Name="UserEmailBox" PlaceholderText="user@company.com" />
+            <TextBox x:Name="UserEmailBox" />
             <TextBlock Text="Device unlock PIN" />
             <PasswordBox x:Name="SetupDevicePinBox" MaxLength="6" />
             <TextBlock Text="Uninstall PIN" />
