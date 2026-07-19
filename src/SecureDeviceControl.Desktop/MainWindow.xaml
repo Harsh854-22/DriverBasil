@@ -5,10 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Secure Device Control"
-        Height="620"
-        MinHeight="560"
-        Width="860"
-        MinWidth="760"
+        Height="680"
+        MinHeight="600"
+        Width="920"
+        MinWidth="820"
         Background="#0F172A"
         Foreground="#E5E7EB"
         Loaded="Window_Loaded">
@@ -49,7 +49,7 @@
         <TextBlock Text="Secure Device Control"
                    FontSize="30"
                    FontWeight="Bold" />
-        <TextBlock Text="PIN-gated pendrive access with service-owned enforcement"
+        <TextBlock Text="PIN-gated device port control with service-owned enforcement"
                    Foreground="#9CA3AF"
                    Margin="0,6,0,0" />
       </StackPanel>
@@ -65,26 +65,35 @@
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <StackPanel Grid.Column="0">
           <TextBlock Text="Service" Foreground="#9CA3AF" />
           <TextBlock x:Name="ServiceStatusText"
                      Text="Checking..."
-                     FontSize="18"
+                     FontSize="16"
                      FontWeight="SemiBold" />
         </StackPanel>
         <StackPanel Grid.Column="1">
-          <TextBlock Text="Pendrive Lock" Foreground="#9CA3AF" />
-          <TextBlock x:Name="UsbLockText"
-                     Text="Unknown"
-                     FontSize="18"
-                     FontWeight="SemiBold" />
+          <TextBlock Text="Registered User &amp; PC" Foreground="#9CA3AF" />
+          <TextBlock x:Name="UserInfoText"
+                     Text="Unregistered"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" />
         </StackPanel>
         <StackPanel Grid.Column="2">
+          <TextBlock Text="Pendrive / Mobile Lock" Foreground="#9CA3AF" />
+          <TextBlock x:Name="LockStatusText"
+                     Text="Unknown"
+                     FontSize="14"
+                     FontWeight="SemiBold" />
+        </StackPanel>
+        <StackPanel Grid.Column="3">
           <TextBlock Text="Unlock Timer" Foreground="#9CA3AF" />
           <TextBlock x:Name="UnlockTimerText"
                      Text="Inactive"
-                     FontSize="18"
+                     FontSize="14"
                      FontWeight="SemiBold" />
         </StackPanel>
       </Grid>
@@ -94,17 +103,19 @@
       <StackPanel>
         <Border x:Name="SetupPanel" Style="{StaticResource Panel}">
           <StackPanel>
-            <TextBlock Text="First-run PIN setup"
+            <TextBlock Text="First-run Registration &amp; PIN setup"
                        FontSize="20"
                        FontWeight="Bold" />
-            <TextBlock Text="Create two different 6-digit PINs. The service stores only protected hashes."
+            <TextBlock Text="Enter your Email ID and create two 6-digit PINs. Your Email ID binds this installation to this PC."
                        Foreground="#9CA3AF"
                        Margin="0,4,0,16" />
-            <TextBlock Text="Pendrive unlock PIN" />
+            <TextBlock Text="User Email ID" />
+            <TextBox x:Name="UserEmailBox" PlaceholderText="user@company.com" />
+            <TextBlock Text="Device unlock PIN" />
             <PasswordBox x:Name="SetupDevicePinBox" MaxLength="6" />
             <TextBlock Text="Uninstall PIN" />
             <PasswordBox x:Name="SetupUninstallPinBox" MaxLength="6" />
-            <Button Content="Initialize protection"
+            <Button Content="Initialize &amp; Register"
                     Width="180"
                     Click="InitializePinsButton_Click" />
           </StackPanel>
@@ -112,27 +123,51 @@
 
         <Grid x:Name="MainPanel">
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="1.2*" />
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
 
           <Border Grid.Column="0" Style="{StaticResource Panel}" Margin="0,0,8,16">
             <StackPanel>
-              <TextBlock Text="Use pendrive"
+              <TextBlock Text="Port &amp; Device Control"
                          FontSize="20"
                          FontWeight="Bold" />
-              <TextBlock Text="Enter the pendrive PIN to unlock USB storage for 15 minutes."
+              <TextBlock Text="Directly toggle port status. Enabling/unlocking requires the Device PIN."
                          Foreground="#9CA3AF"
-                         Margin="0,4,0,16" />
-              <TextBlock Text="Pendrive unlock PIN" />
+                         Margin="0,4,0,16"
+                         TextWrapping="Wrap" />
+
+              <TextBlock Text="Device Unlock PIN" FontWeight="Bold" Margin="0,0,0,2"/>
               <PasswordBox x:Name="UnlockPinBox" MaxLength="6" />
-              <Button Content="Unlock for 15 minutes"
-                      Width="190"
-                      Click="UnlockButton_Click" />
+
+              <Separator Margin="0,4,0,14" Background="#263754" />
+
+              <!-- USB Storage controls -->
+              <TextBlock Text="USB Storage (Pendrive)" FontSize="15" FontWeight="SemiBold" />
+              <TextBlock Text="Controls authorization for external USB flash and hard drives." Foreground="#9CA3AF" FontSize="12" Margin="0,2,0,8" TextWrapping="Wrap"/>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                <Button Content="Lock / Disable" Click="LockUsbButton_Click" Background="#EF4444" Foreground="White" BorderThickness="0" Margin="0,0,8,0" Width="130"/>
+                <Button Content="Unlock / Enable" Click="UnlockUsbButton_Click" Background="#10B981" Foreground="White" BorderThickness="0" Width="130"/>
+              </StackPanel>
+
+              <!-- Mobile Port controls -->
+              <TextBlock Text="Mobile Devices (MTP)" FontSize="15" FontWeight="SemiBold" />
+              <TextBlock Text="Controls authorization for smartphones and media players." Foreground="#9CA3AF" FontSize="12" Margin="0,2,0,8" TextWrapping="Wrap"/>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                <Button Content="Lock / Disable" Click="LockMobileButton_Click" Background="#EF4444" Foreground="White" BorderThickness="0" Margin="0,0,8,0" Width="130"/>
+                <Button Content="Unlock / Enable" Click="UnlockMobileButton_Click" Background="#10B981" Foreground="White" BorderThickness="0" Width="130"/>
+              </StackPanel>
+
+              <Separator Margin="0,4,0,14" Background="#263754" />
+
+              <!-- Quick Temporary Unlock -->
+              <TextBlock Text="Temporary Unlock (All)" FontSize="15" FontWeight="SemiBold" />
+              <TextBlock Text="Temporarily bypasses all policy locks for 15 minutes." Foreground="#9CA3AF" FontSize="12" Margin="0,2,0,8"/>
+              <Button Content="Unlock All for 15 min" Click="UnlockTimerButton_Click" Width="180" HorizontalAlignment="Left" Background="#3B82F6" Foreground="White" BorderThickness="0"/>
             </StackPanel>
           </Border>
 
-          <Border Grid.Column="1" Style="{StaticResource Panel}" Margin="8,0,0,16">
+          <Border Grid.Column="1" Style="{StaticResource Panel}" Margin="8,0,0,16" VerticalAlignment="Top">
             <StackPanel>
               <TextBlock Text="Authorize uninstall"
                          FontSize="20"
@@ -144,7 +179,6 @@
               <TextBlock Text="Uninstall PIN" />
               <PasswordBox x:Name="UninstallPinBox" MaxLength="6" />
               <Button Content="Create uninstall authorization"
-                      Width="240"
                       Click="UninstallButton_Click" />
             </StackPanel>
           </Border>

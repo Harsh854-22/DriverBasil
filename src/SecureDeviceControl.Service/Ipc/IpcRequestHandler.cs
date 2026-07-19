@@ -36,6 +36,7 @@ public sealed class IpcRequestHandler
                 IpcOperation.StartUnlockTimer => await StartUnlockTimerAsync(request, cancellationToken),
                 IpcOperation.RequestUninstallAuthorization => await RequestUninstallAuthorizationAsync(request, cancellationToken),
                 IpcOperation.ListActivityLogs => await ListActivityLogsAsync(request, cancellationToken),
+                IpcOperation.SetDeviceClassLock => await SetDeviceClassLockAsync(request, cancellationToken),
                 _ => IpcResponse.Fail(request.CorrelationId, IpcErrorCode.BadRequest, "Unsupported IPC operation.")
             };
         }
@@ -67,7 +68,7 @@ public sealed class IpcRequestHandler
         CancellationToken cancellationToken)
     {
         var payload = ReadPayload<InitializePinsRequest>(request);
-        await coordinator.InitializePinsAsync(payload.DeviceUnlockPin, payload.UninstallPin, cancellationToken);
+        await coordinator.InitializePinsAsync(payload.UserEmail, payload.DeviceUnlockPin, payload.UninstallPin, cancellationToken);
         return IpcResponse.Ok(request.CorrelationId);
     }
 
@@ -127,6 +128,23 @@ public sealed class IpcRequestHandler
             : ReadPayload<ListActivityLogsRequest>(request);
         var result = await coordinator.ListActivityLogsAsync(payload.Limit, cancellationToken);
         return IpcResponse.Ok(request.CorrelationId, result);
+    }
+
+    private async Task<IpcResponse> SetDeviceClassLockAsync(
+        IpcRequest request,
+        CancellationToken cancellationToken)
+    {
+        var payload = ReadPayload<SetDeviceClassLockRequest>(request);
+
+        // Security requirement: To enable (Locked == false), a valid session is required.
+        // To disable (Locked == true), no PIN/session is required (instant lock down is permitted).
+        if (!payload.Locked)
+        {
+            RequireSession(request.SessionToken, PinPurpose.DeviceUnlock);
+        }
+
+        await coordinator.SetDeviceClassLockAsync(payload.DeviceClass, payload.Locked, cancellationToken);
+        return IpcResponse.Ok(request.CorrelationId);
     }
 
     private void RequireSession(string? sessionToken, PinPurpose purpose)

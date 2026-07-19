@@ -33,28 +33,101 @@ public partial class MainWindow : Window
         {
             var response = await ipcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.InitializePins,
-                new InitializePinsRequest(SetupDevicePinBox.Password, SetupUninstallPinBox.Password)));
+                new InitializePinsRequest(UserEmailBox.Text, SetupDevicePinBox.Password, SetupUninstallPinBox.Password)));
 
             EnsureSuccess(response);
+            UserEmailBox.Clear();
             SetupDevicePinBox.Clear();
             SetupUninstallPinBox.Clear();
-            MessageText.Text = "Protection initialized. Pendrive access is locked until you enter the pendrive PIN.";
+            MessageText.Text = "Protection initialized and registered. Hardware access is locked until you enter the device PIN.";
             await RefreshStatusAsync();
         });
     }
 
-    private async void UnlockButton_Click(object sender, RoutedEventArgs e)
+    private async Task EnsureDeviceUnlockSessionAsync()
+    {
+        if (string.IsNullOrEmpty(UnlockPinBox.Password))
+        {
+            if (string.IsNullOrEmpty(deviceUnlockSessionToken))
+            {
+                throw new InvalidOperationException("Please enter the Device Unlock PIN.");
+            }
+            return;
+        }
+
+        var validateResponse = await ipcClient.SendAsync(IpcRequest.Create(
+            IpcOperation.ValidatePin,
+            new ValidatePinRequest(PinPurpose.DeviceUnlock, UnlockPinBox.Password)));
+        EnsureSuccess(validateResponse);
+
+        var session = ReadPayload<ValidatePinResult>(validateResponse);
+        deviceUnlockSessionToken = session.SessionToken;
+        UnlockPinBox.Clear();
+    }
+
+    private async void LockUsbButton_Click(object sender, RoutedEventArgs e)
     {
         await RunUiActionAsync(async () =>
         {
-            var validateResponse = await ipcClient.SendAsync(IpcRequest.Create(
-                IpcOperation.ValidatePin,
-                new ValidatePinRequest(PinPurpose.DeviceUnlock, UnlockPinBox.Password)));
-            EnsureSuccess(validateResponse);
+            var response = await ipcClient.SendAsync(IpcRequest.Create(
+                IpcOperation.SetDeviceClassLock,
+                new SetDeviceClassLockRequest(DeviceClass.RemovableStorage, true),
+                deviceUnlockSessionToken));
+            EnsureSuccess(response);
+            MessageText.Text = "USB Storage has been locked.";
+            await RefreshStatusAsync();
+        });
+    }
 
-            var session = ReadPayload<ValidatePinResult>(validateResponse);
-            deviceUnlockSessionToken = session.SessionToken;
+    private async void UnlockUsbButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(async () =>
+        {
+            await EnsureDeviceUnlockSessionAsync();
+            var response = await ipcClient.SendAsync(IpcRequest.Create(
+                IpcOperation.SetDeviceClassLock,
+                new SetDeviceClassLockRequest(DeviceClass.RemovableStorage, false),
+                deviceUnlockSessionToken));
+            EnsureSuccess(response);
+            MessageText.Text = "USB Storage has been unlocked.";
+            await RefreshStatusAsync();
+        });
+    }
 
+    private async void LockMobileButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(async () =>
+        {
+            var response = await ipcClient.SendAsync(IpcRequest.Create(
+                IpcOperation.SetDeviceClassLock,
+                new SetDeviceClassLockRequest(DeviceClass.MobileDevice, true),
+                deviceUnlockSessionToken));
+            EnsureSuccess(response);
+            MessageText.Text = "Mobile Port has been locked.";
+            await RefreshStatusAsync();
+        });
+    }
+
+    private async void UnlockMobileButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(async () =>
+        {
+            await EnsureDeviceUnlockSessionAsync();
+            var response = await ipcClient.SendAsync(IpcRequest.Create(
+                IpcOperation.SetDeviceClassLock,
+                new SetDeviceClassLockRequest(DeviceClass.MobileDevice, false),
+                deviceUnlockSessionToken));
+            EnsureSuccess(response);
+            MessageText.Text = "Mobile Port has been unlocked.";
+            await RefreshStatusAsync();
+        });
+    }
+
+    private async void UnlockTimerButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(async () =>
+        {
+            await EnsureDeviceUnlockSessionAsync();
             var unlockResponse = await ipcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.StartUnlockTimer,
                 new StartUnlockTimerRequest(15),
@@ -62,8 +135,7 @@ public partial class MainWindow : Window
             EnsureSuccess(unlockResponse);
 
             var unlockResult = ReadPayload<StartUnlockTimerResult>(unlockResponse);
-            UnlockPinBox.Clear();
-            MessageText.Text = $"Pendrive access unlocked until {unlockResult.ExpiresAt.LocalDateTime}.";
+            MessageText.Text = $"All access unlocked temporarily until {unlockResult.ExpiresAt.LocalDateTime}.";
             await RefreshStatusAsync();
         });
     }
@@ -105,7 +177,7 @@ public partial class MainWindow : Window
             var logs = ReadPayload<IReadOnlyList<ActivityLogDto>>(response);
             ActivityLogBox.Text = string.Join(
                 Environment.NewLine,
-                logs.Select(log => $"{log.Timestamp.LocalDateTime:g}  {log.EventType}  {log.Message}"));
+                logs.Select(log => $"{log.Timestamp.LocalDateTime:g} [{log.MachineName} | {log.UserEmail}] {log.EventType}: {log.Message}"));
         });
     }
 
@@ -117,8 +189,11 @@ public partial class MainWindow : Window
             EnsureSuccess(response);
             var status = ReadPayload<ServiceStatusDto>(response);
 
-            ServiceStatusText.Text = status.IsInitialized ? "Ready" : "Needs PIN setup";
-            UsbLockText.Text = status.IsUsbStorageLocked ? "Locked" : "Unlocked";
+            ServiceStatusText.Text = status.IsInitialized ? "Ready" : "Needs Registration";
+            UserInfoText.Text = !string.IsNullOrEmpty(status.UserEmail)
+                ? $"{status.UserEmail} ({status.MachineName})"
+                : $"Unregistered ({status.MachineName})";
+            LockStatusText.Text = $"USB: {(status.IsUsbStorageLocked ? "Locked" : "Unlocked")} | Mobile: {(status.IsMobilePortLocked ? "Locked" : "Unlocked")}";
             UnlockTimerText.Text = status.IsUnlockTimerActive && status.UnlockExpiresAt is not null
                 ? $"Active until {status.UnlockExpiresAt.Value.LocalDateTime:g}"
                 : "Inactive";

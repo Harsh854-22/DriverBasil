@@ -1,3 +1,5 @@
+using SecureDeviceControl.Shared.Contracts;
+
 namespace SecureDeviceControl.Domain.Devices;
 
 public sealed record Device(

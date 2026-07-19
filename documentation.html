@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Device Control - Complete User & Administration Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0B0F19;
+      --bg-card: #111827;
+      --bg-sidebar: #0F172A;
+      --accent-blue: #3B82F6;
+      --accent-green: #10B981;
+      --accent-purple: #8B5CF6;
+      --accent-red: #EF4444;
+      --text-main: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --border-color: #1F2937;
+      --code-bg: #1E293B;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.6;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    aside {
+      width: 280px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      padding: 30px 20px;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    aside .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+
+    aside .brand-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 20px;
+      color: white;
+    }
+
+    aside .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: white;
+    }
+
+    aside ul {
+      list-style: none;
+    }
+
+    aside li {
+      margin-bottom: 8px;
+    }
+
+    aside a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      display: block;
+      padding: 10px 14px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    aside a:hover, aside a.active {
+      color: white;
+      background-color: rgba(59, 130, 246, 0.15);
+      border-left: 3px solid var(--accent-blue);
+    }
+
+    /* Main Content Area */
+    main {
+      margin-left: 280px;
+      flex: 1;
+      padding: 40px 60px;
+      max-width: 1100px;
+    }
+
+    header {
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    header h1 {
+      font-size: 36px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #FFFFFF, #94A3B8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+
+    .section-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 32px;
+      margin-bottom: 36px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h2 .step-badge {
+      background-color: rgba(59, 130, 246, 0.2);
+      color: var(--accent-blue);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 24px 0 12px 0;
+      color: var(--accent-blue);
+    }
+
+    p {
+      color: #CBD5E1;
+      margin-bottom: 16px;
+      font-size: 15px;
+    }
+
+    /* Alerts / Callouts */
+    .alert {
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      font-size: 14px;
+    }
+
+    .alert-info {
+      background-color: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #93C5FD;
+    }
+
+    .alert-success {
+      background-color: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6EE7B7;
+    }
+
+    .alert-warning {
+      background-color: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #FDE68A;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      background-color: #1E293B;
+      color: #F8FAFC;
+      font-weight: 600;
+    }
+
+    td {
+      color: #CBD5E1;
+    }
+
+    tr:hover td {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Code & SQL blocks */
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    pre {
+      background-color: var(--code-bg);
+      border: 1px solid #334155;
+      padding: 18px 20px;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin: 18px 0;
+      font-size: 13.5px;
+      color: #E2E8F0;
+    }
+
+    code {
+      background-color: #1E293B;
+      color: #38BDF8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-off { background-color: #374151; color: #9CA3AF; }
+    .badge-on { background-color: rgba(16, 185, 129, 0.2); color: #34D399; }
+    .badge-selective { background-color: rgba(139, 92, 246, 0.2); color: #C084FC; }
+
+    /* Steps Ordered List */
+    ol.step-list {
+      padding-left: 20px;
+      margin-bottom: 20px;
+    }
+
+    ol.step-list li {
+      margin-bottom: 14px;
+      color: #CBD5E1;
+    }
+  </style>
+</head>
+<body>
+
+  <aside>
+    <div class="brand">
+      <div class="brand-logo">S</div>
+      <div class="brand-title">Secure Device Control</div>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="#overview" class="active">1. System Overview</a></li>
+        <li><a href="#installation">2. Installation & Setup</a></li>
+        <li><a href="#desktop-usage">3. Employee Desktop Usage</a></li>
+        <li><a href="#cloud-management">4. Cloud Remote Control</a></li>
+        <li><a href="#web-email-policy">5. Selective Web & Email Policy</a></li>
+        <li><a href="#database-logging">6. Database Logs & Auditing</a></li>
+        <li><a href="#troubleshooting">7. FAQ & Troubleshooting</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <main>
+    <header>
+      <h1>Secure Device Control Guide</h1>
+      <p>Complete Step-by-Step Instructions: Installation, Desktop Protection, Cloud Database Remote Control, and Employee Policy Restrictions.</p>
+    </header>
+
+    <!-- Section 1: System Overview -->
+    <section id="overview" class="section-card">
+      <h2><span class="step-badge">Section 1</span> System Overview & Security Guarantee</h2>
+      <p><strong>Secure Device Control</strong> is an enterprise-grade hardware port and web endpoint security control suite designed for company PCs and employee workstations.</p>
+
+      <div class="alert alert-success">
+        <div>
+          <strong>Zero Plaintext PIN Security Guarantee:</strong><br>
+          PINs are <strong>NEVER stored in plaintext</strong> anywhere on the PC or database. Every PIN is derived using <strong>Argon2id</strong> (16-byte random salt, 64 MB memory cost) and encrypted via Windows <strong>DPAPI</strong> bound to the SYSTEM account. Password extraction or offline database cracking is computationally infeasible.
+        </div>
+      </div>
+
+      <h3>Core Features Summary</h3>
+      <ul>
+        <li><strong>Hardware Port Lock Down:</strong> Independent PIN-gated controls for USB Storage (Pendrives/External Hard Drives) and Mobile Devices (MTP/WPD smartphones).</li>
+        <li><strong>Single-PC Email Licensing:</strong> Binds user Email IDs to individual PC machine names. The same Email ID cannot be used across multiple PCs.</li>
+        <li><strong>Cloud Database Remote Control:</strong> Control web filtering modes, selective website whitelists, email restrictions, and port locks remotely for specific PCs from your Supabase PostgreSQL database.</li>
+        <li><strong>Offline Log Buffering:</strong> All access attempts, PIN validations, and policy events are logged locally in SQLite offline and synced to Supabase when connected to the internet.</li>
+      </ul>
+    </section>
+
+    <!-- Section 2: Installation & First-Time Setup -->
+    <section id="installation" class="section-card">
+      <h2><span class="step-badge">Section 2</span> Step-by-Step Installation & First-Time Setup</h2>
+
+      <ol class="step-list">
+        <li>
+          <strong>Install the Windows Background Service:</strong><br>
+          Run the installer or register the service executable on the employee workstation:
+          <pre><code>sc create "Secure Device Control" binPath= "C:\Program Files\SecureDeviceControl\SecureDeviceControl.Service.exe" start= auto</code></pre>
+        </li>
+        <li>
+          <strong>Launch the Desktop App:</strong><br>
+          Open <code>SecureDeviceControl.Desktop.exe</code>. Upon first launch, the app displays the <strong>First-run Registration & PIN Setup</strong> screen.
+        </li>
+        <li>
+          <strong>Complete Registration Details:</strong>
+          <ul>
+            <li><strong>User Email ID:</strong> Enter the employee's corporate email address (e.g., <code>employee@company.com</code>).</li>
+            <li><strong>Device Unlock PIN:</strong> Enter a 6-digit PIN used to temporarily unlock ports or modify settings.</li>
+            <li><strong>Uninstall PIN:</strong> Enter a separate 6-digit PIN used exclusively for uninstall authorization.</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Click "Initialize & Register":</strong><br>
+          The service contacts your Supabase database to register the device and bind the Email ID to <code>Environment.MachineName</code>.
+        </li>
+      </ol>
+
+      <div class="alert alert-warning">
+        <div>
+          <strong>Single-PC Protection Enforcement:</strong><br>
+          If an employee attempts to initialize an Email ID that is already registered to another PC, setup will be rejected with an error: <code>This Email ID is already registered to PC: 'PC-SALES-01'</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Employee Desktop Usage -->
+    <section id="desktop-usage" class="section-card">
+      <h2><span class="step-badge">Section 3</span> Employee Desktop Application Usage</h2>
+      <p>Once registered, the Desktop App presents the main control panel and live status indicators.</p>
+
+      <h3>1. Desktop Status Indicators</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Indicator</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Service Status</code></td>
+            <td>Shows <code>Ready</code> when protection is active, or <code>Needs Registration</code>.</td>
+          </tr>
+          <tr>
+            <td><code>Registered User & PC</code></td>
+            <td>Displays the bound Email ID and local PC Machine Name (e.g., <code>user@company.com (DESKTOP-BASIL-01)</code>).</td>
+          </tr>
+          <tr>
+            <td><code>Pendrive / Mobile Lock</code></td>
+            <td>Displays real-time lock status for USB Storage and Mobile Devices.</td>
+          </tr>
+          <tr>
+            <td><code>Unlock Timer</code></td>
+            <td>Displays expiration time when a temporary unlock timer is active.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>2. PIN-Gated Hardware Port Controls</h3>
+      <p>Unlocking ports requires entering the 6-digit <strong>Device Unlock PIN</strong>. Locking ports down can be performed instantly without a PIN for immediate security.</p>
+      <ul>
+        <li><strong>USB Storage (Pendrive):</strong> Click <code>Lock / Disable</code> or <code>Unlock / Enable</code>.</li>
+        <li><strong>Mobile Devices (MTP):</strong> Click <code>Lock / Disable</code> or <code>Unlock / Enable</code>.</li>
+        <li><strong>Temporary 15-Minute Unlock:</strong> Click <code>Unlock All for 15 min</code> after entering the PIN to temporarily enable ports for file transfers. Ports automatically re-lock when the timer expires.</li>
+      </ul>
+    </section>
+
+    <!-- Section 4: Cloud Remote Management -->
+    <section id="cloud-management" class="section-card">
+      <h2><span class="step-badge">Section 4</span> Cloud Remote Control via Supabase Database</h2>
+      <p>You can manage and update policies remotely for <strong>any specific PC individually</strong> right from your Supabase PostgreSQL database tables.</p>
+
+      <h3>Supabase Policy Table Structure (<code>device_policies</code>)</h3>
+      <p>Each registered PC gets its own dedicated row in <code>device_policies</code> keyed by <code>email_id</code>:</p>
+
+      <pre><code>CREATE TABLE device_policies (
+    email_id TEXT PRIMARY KEY,
+    machine_name TEXT NOT NULL,
+    web_filter_mode TEXT NOT NULL DEFAULT 'OFF', -- 'OFF', 'SELECTIVE', 'BLOCKLIST'
+    allowed_websites TEXT NOT NULL DEFAULT '', -- Comma-separated (e.g., 'company.com, portal.company.com')
+    blocked_websites TEXT NOT NULL DEFAULT '', -- Comma-separated (e.g., 'facebook.com, instagram.com')
+    email_filter_mode TEXT NOT NULL DEFAULT 'OFF', -- 'OFF', 'RESTRICTED'
+    allowed_email_domains TEXT NOT NULL DEFAULT 'company.com', -- Comma-separated
+    updated_at TIMESTAMPTZ NOT NULL
+);</code></pre>
+
+      <h3>How to Update a Specific PC Remotely</h3>
+      <p>Execute SQL commands directly in your Supabase SQL Editor or edit rows in Table Editor:</p>
+
+      <p><strong>Example 1: Enable Selective Web Access (ONLY Allowed Sites) for a specific PC:</strong></p>
+      <pre><code>UPDATE device_policies
+SET web_filter_mode = 'SELECTIVE',
+    allowed_websites = 'company.com, portal.company.com, supabase.com',
+    updated_at = NOW()
+WHERE email_id = 'employee@company.com';</code></pre>
+
+      <p><strong>Example 2: Restrict Email to Corporate Domain Only for a specific PC:</strong></p>
+      <pre><code>UPDATE device_policies
+SET email_filter_mode = 'RESTRICTED',
+    allowed_email_domains = 'company.com',
+    updated_at = NOW()
+WHERE email_id = 'employee@company.com';</code></pre>
+
+      <p><strong>Example 3: Turn Off Restrictions for an Authorized Administrator PC:</strong></p>
+      <pre><code>UPDATE device_policies
+SET web_filter_mode = 'OFF',
+    email_filter_mode = 'OFF',
+    updated_at = NOW()
+WHERE email_id = 'admin@company.com';</code></pre>
+
+      <div class="alert alert-info">
+        <div>
+          <strong>Automatic Sync:</strong> Every employee PC background service polls Supabase every 30 seconds. Remote policy changes take effect on the employee's machine automatically within 30 seconds without requiring a reboot.
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Web & Email Domain Policy Modes -->
+    <section id="web-email-policy" class="section-card">
+      <h2><span class="step-badge">Section 5</span> Selective Web & Email Domain Restrictions</h2>
+
+      <h3>1. Web Filtering Modes (<code>web_filter_mode</code>)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Mode</th>
+            <th>Badge</th>
+            <th>Behavior & Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>OFF</code></td>
+            <td><span class="badge badge-off">OFF</span></td>
+            <td>Web filtering is disabled. Standard browser access.</td>
+          </tr>
+          <tr>
+            <td><code>SELECTIVE</code></td>
+            <td><span class="badge badge-selective">SELECTIVE (Whitelist)</span></td>
+            <td>Employees can <strong>ONLY access the selective websites</strong> listed in <code>allowed_websites</code> (e.g., <code>company.com</code>). All other websites on the internet are blocked.</td>
+          </tr>
+          <tr>
+            <td><code>BLOCKLIST</code></td>
+            <td><span class="badge badge-on">BLOCKLIST (Blacklist)</span></td>
+            <td>Blocks access to specific forbidden websites listed in <code>blocked_websites</code> (e.g. <code>facebook.com</code>).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>2. Email Restriction Modes (<code>email_filter_mode</code>)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Mode</th>
+            <th>Badge</th>
+            <th>Behavior & Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>OFF</code></td>
+            <td><span class="badge badge-off">OFF</span></td>
+            <td>No email domain restrictions.</td>
+          </tr>
+          <tr>
+            <td><code>RESTRICTED</code></td>
+            <td><span class="badge badge-on">RESTRICTED (Corporate Only)</span></td>
+            <td>Blocks personal webmails (<code>gmail.com</code>, <code>yahoo.com</code>, <code>outlook.live.com</code>, <code>temp-mail.org</code>). Access is limited strictly to authorized corporate email domains listed in <code>allowed_email_domains</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 6: Database Logging & Auditing -->
+    <section id="database-logging" class="section-card">
+      <h2><span class="step-badge">Section 6</span> Live Database Activity Logs & Auditing</h2>
+      <p>All system events and unauthorized attempts are logged directly to your Supabase <code>activity_logs</code> table:</p>
+
+      <pre><code>SELECT machine_name, user_email, timestamp_utc, event_type, message
+FROM activity_logs
+ORDER BY id DESC
+LIMIT 50;</code></pre>
+
+      <h3>Sample Audit Log Records</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>PC Machine Name</th>
+            <th>User Email</th>
+            <th>Timestamp (UTC)</th>
+            <th>Event Type</th>
+            <th>Event Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>DESKTOP-BASIL-01</code></td>
+            <td><code>john@company.com</code></td>
+            <td><code>2026-07-19 09:10:00</code></td>
+            <td><code>PinsInitialized</code></td>
+            <td>Device protection initialized for Email 'john@company.com' on PC 'DESKTOP-BASIL-01'.</td>
+          </tr>
+          <tr>
+            <td><code>DESKTOP-SALES-02</code></td>
+            <td><code>mark@company.com</code></td>
+            <td><code>2026-07-19 09:12:15</code></td>
+            <td><code>InvalidPin</code></td>
+            <td>DeviceUnlock PIN validation failed.</td>
+          </tr>
+          <tr>
+            <td><code>DESKTOP-SALES-02</code></td>
+            <td><code>mark@company.com</code></td>
+            <td><code>2026-07-19 09:15:30</code></td>
+            <td><code>DeviceLockApplied</code></td>
+            <td>MobileDevice was manually locked.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Section 7: FAQ & Troubleshooting -->
+    <section id="troubleshooting" class="section-card">
+      <h2><span class="step-badge">Section 7</span> Frequently Asked Questions (FAQ) & Troubleshooting</h2>
+
+      <h3>Q: What happens if an employee PC disconnects from the Internet?</h3>
+      <p>The background service continues enforcing all hardware lock policies and web filtering offline using local SQLite storage. All activity logs generated offline are buffered in SQLite and automatically pushed to Supabase as soon as internet connectivity restores.</p>
+
+      <h3>Q: How do I move an Email ID to a new PC replacement?</h3>
+      <p>Run the following SQL query in Supabase to delete the existing registration record, allowing the employee to register on their new machine:</p>
+      <pre><code>DELETE FROM registered_devices WHERE email_id = 'employee@company.com';</code></pre>
+
+      <h3>Q: Where are the local connection settings stored?</h3>
+      <p>Service settings are located in <code>c:\Users\admin\Desktop\DriverBasil\DriverBasil\src\SecureDeviceControl.Service\appsettings.json</code>.</p>
+    </section>
+  </main>
+
+</body>
+</html>

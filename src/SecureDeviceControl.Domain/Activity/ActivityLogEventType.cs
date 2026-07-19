@@ -10,5 +10,6 @@ public enum ActivityLogEventType
     DeviceLockApplied,
     UninstallAuthorizationIssued,
     IpcRejected,
-    PolicyEvaluated
+    PolicyEvaluated,
+    FileTransferDetected
 }

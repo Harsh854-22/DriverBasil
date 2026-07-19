@@ -1,5 +1,6 @@
 using SecureDeviceControl.Domain.Devices;
 using SecureDeviceControl.Domain.Policy;
+using SecureDeviceControl.Shared.Contracts;
 using DevicePolicy = SecureDeviceControl.Domain.Policy.Policy;
 
 namespace SecureDeviceControl.Domain.Tests;

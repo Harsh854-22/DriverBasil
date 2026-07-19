@@ -6,6 +6,7 @@ using SecureDeviceControl.Infrastructure.Paths;
 using SecureDeviceControl.Infrastructure.Persistence;
 using SecureDeviceControl.Infrastructure.Security;
 using SecureDeviceControl.Infrastructure.Usb;
+using SecureDeviceControl.Infrastructure.Web;
 using SecureDeviceControl.Service;
 using SecureDeviceControl.Service.Ipc;
 using SecureDeviceControl.Shared.Contracts;
@@ -22,6 +23,10 @@ public sealed class SecurityHardeningTests : IDisposable
     private readonly Argon2idPinHasher pinHasher;
     private readonly DeviceControlDatabase database;
     private readonly TestUsbStoragePolicy usbPolicy;
+    private readonly TestMobilePortPolicy mobilePolicy;
+    private readonly TestWebFilterPolicy webPolicy;
+    private readonly TestCloudRepository cloudRepository;
+    private readonly TestRemovableDriveMonitor driveMonitor;
     private readonly MutableTimeProvider timeProvider;
     private readonly DeviceControlCoordinator coordinator;
     private readonly PinAttemptLimiter pinAttemptLimiter;
@@ -36,16 +41,26 @@ public sealed class SecurityHardeningTests : IDisposable
         pinHasher = new Argon2idPinHasher();
         database = new DeviceControlDatabase(paths, secretProtector);
         usbPolicy = new TestUsbStoragePolicy();
+        mobilePolicy = new TestMobilePortPolicy();
+        webPolicy = new TestWebFilterPolicy();
+        cloudRepository = new TestCloudRepository();
+        driveMonitor = new TestRemovableDriveMonitor();
         timeProvider = new MutableTimeProvider(DateTimeOffset.Parse("2026-07-09T12:00:00Z"));
         
         var logger = new TestLogger<DeviceControlCoordinator>();
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
         coordinator = new DeviceControlCoordinator(
             database,
             pinHasher,
             secretProtector,
             usbPolicy,
+            mobilePolicy,
+            webPolicy,
+            cloudRepository,
+            driveMonitor,
             paths,
             timeProvider,
+            config,
             logger);
 
         pinAttemptLimiter = new PinAttemptLimiter(timeProvider);
@@ -331,7 +346,7 @@ public sealed class SecurityHardeningTests : IDisposable
     public async Task StartUnlockTimer_Should_Reject_Zero_Minutes()
     {
         await coordinator.InitializeAsync(CancellationToken.None);
-        await coordinator.InitializePinsAsync("123456", "654321", CancellationToken.None);
+        await coordinator.InitializePinsAsync("admin@company.com", "123456", "654321", CancellationToken.None);
 
         var request = IpcRequest.Create(
             IpcOperation.StartUnlockTimer,
@@ -350,7 +365,7 @@ public sealed class SecurityHardeningTests : IDisposable
     public async Task StartUnlockTimer_Should_Reject_Negative_Minutes()
     {
         await coordinator.InitializeAsync(CancellationToken.None);
-        await coordinator.InitializePinsAsync("123456", "654321", CancellationToken.None);
+        await coordinator.InitializePinsAsync("admin@company.com", "123456", "654321", CancellationToken.None);
 
         var request = IpcRequest.Create(
             IpcOperation.StartUnlockTimer,
@@ -369,7 +384,7 @@ public sealed class SecurityHardeningTests : IDisposable
     public async Task StartUnlockTimer_Should_Reject_Too_Large_Minutes()
     {
         await coordinator.InitializeAsync(CancellationToken.None);
-        await coordinator.InitializePinsAsync("123456", "654321", CancellationToken.None);
+        await coordinator.InitializePinsAsync("admin@company.com", "123456", "654321", CancellationToken.None);
 
         var request = IpcRequest.Create(
             IpcOperation.StartUnlockTimer,
@@ -388,7 +403,7 @@ public sealed class SecurityHardeningTests : IDisposable
     public async Task StartUnlockTimer_Should_Accept_Minimum_Bound()
     {
         await coordinator.InitializeAsync(CancellationToken.None);
-        await coordinator.InitializePinsAsync("123456", "654321", CancellationToken.None);
+        await coordinator.InitializePinsAsync("admin@company.com", "123456", "654321", CancellationToken.None);
 
         var request = IpcRequest.Create(
             IpcOperation.StartUnlockTimer,
@@ -406,7 +421,7 @@ public sealed class SecurityHardeningTests : IDisposable
     public async Task StartUnlockTimer_Should_Accept_Maximum_Bound()
     {
         await coordinator.InitializeAsync(CancellationToken.None);
-        await coordinator.InitializePinsAsync("123456", "654321", CancellationToken.None);
+        await coordinator.InitializePinsAsync("admin@company.com", "123456", "654321", CancellationToken.None);
 
         var request = IpcRequest.Create(
             IpcOperation.StartUnlockTimer,
@@ -418,6 +433,31 @@ public sealed class SecurityHardeningTests : IDisposable
         var response = await ipcHandler.HandleAsync(authRequest, CancellationToken.None);
 
         Assert.True(response.Success);
+    }
+
+    [Theory]
+    [InlineData("invalid-email")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task InitializePins_With_Invalid_Email_Should_Fail(string invalidEmail)
+    {
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        await Assert.ThrowsAsync<IpcRequestException>(() =>
+            coordinator.InitializePinsAsync(invalidEmail, "123456", "654321", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task InitializePins_With_Valid_Email_Should_Store_Email_And_MachineName()
+    {
+        await coordinator.InitializeAsync(CancellationToken.None);
+        await coordinator.InitializePinsAsync("user@corp.com", "123456", "654321", CancellationToken.None);
+
+        var status = await coordinator.GetStatusAsync(CancellationToken.None);
+
+        Assert.True(status.IsInitialized);
+        Assert.Equal("user@corp.com", status.UserEmail);
+        Assert.Equal(Environment.MachineName, status.MachineName);
     }
 
     #endregion
@@ -438,6 +478,51 @@ public sealed class SecurityHardeningTests : IDisposable
             IsLocked = locked;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class TestMobilePortPolicy : IMobilePortPolicy
+    {
+        public bool IsLocked { get; private set; } = true;
+
+        public Task<bool> IsMobilePortLockedAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult(IsLocked);
+        }
+
+        public Task SetMobilePortLockedAsync(bool locked, CancellationToken cancellationToken)
+        {
+            IsLocked = locked;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class TestWebFilterPolicy : IWebFilterPolicy
+    {
+        public Task ApplyWebFilterPolicyAsync(
+            WebFilterMode mode,
+            IReadOnlyList<string> allowedWebsites,
+            IReadOnlyList<string> blockedWebsites,
+            EmailFilterMode emailMode,
+            IReadOnlyList<string> allowedEmailDomains,
+            CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class TestCloudRepository : ICloudRepository
+    {
+        public Task EnsureSchemaAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task RegisterDeviceAsync(string emailId, string machineName, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task UploadActivityLogsAsync(IReadOnlyList<SecureDeviceControl.Domain.Activity.ActivityLogEntry> logs, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<CloudDevicePolicy?> GetDevicePolicyAsync(string emailId, CancellationToken cancellationToken) => Task.FromResult<CloudDevicePolicy?>(null);
+    }
+
+    private sealed class TestRemovableDriveMonitor : IRemovableDriveMonitor
+    {
+        public void StartMonitoring(Action<string, long, string> onFileWritten) { }
+        public void StopMonitoring() { }
+        public void Dispose() { }
     }
 
     private sealed class TestLogger<T> : ILogger<T>, IDisposable

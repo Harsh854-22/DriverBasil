@@ -4,4 +4,6 @@ public sealed record ActivityLogEntry(
     long Id,
     DateTimeOffset Timestamp,
     ActivityLogEventType EventType,
-    string Message);
+    string Message,
+    string MachineName = "",
+    string UserEmail = "");

@@ -7,5 +7,6 @@ public enum IpcOperation
     ValidatePin,
     StartUnlockTimer,
     RequestUninstallAuthorization,
-    ListActivityLogs
+    ListActivityLogs,
+    SetDeviceClassLock
 }
