@@ -79,7 +79,20 @@ public sealed class HostsWebFilterPolicy : IWebFilterPolicy
 
                 foreach (var webmail in StandardPersonalWebmails)
                 {
-                    if (!allowedEmailSet.Contains(CleanDomain(webmail)))
+                    var cleanWebmail = CleanDomain(webmail);
+                    bool isAllowed = false;
+                    foreach (var allowed in allowedEmailSet)
+                    {
+                        if (cleanWebmail.Equals(allowed, StringComparison.OrdinalIgnoreCase) ||
+                            cleanWebmail.EndsWith("." + allowed, StringComparison.OrdinalIgnoreCase) ||
+                            (allowed.Equals("gmail.com", StringComparison.OrdinalIgnoreCase) && (cleanWebmail.Contains("gmail") || cleanWebmail.Contains("mail.google.com"))))
+                        {
+                            isAllowed = true;
+                            break;
+                        }
+                    }
+
+                    if (!isAllowed)
                     {
                         blockedDomains.Add(webmail);
                     }
