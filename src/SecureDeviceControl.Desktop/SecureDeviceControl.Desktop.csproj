@@ -1,6 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
     <ProjectReference Include="..\SecureDeviceControl.Shared\SecureDeviceControl.Shared.csproj" />
   </ItemGroup>
 

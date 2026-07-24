@@ -17,7 +17,16 @@ public sealed class IpcClient
             PipeDirection.InOut,
             PipeOptions.Asynchronous);
 
-        await pipe.ConnectAsync(2_000, cancellationToken);
+        try
+        {
+            await pipe.ConnectAsync(1_500, cancellationToken);
+        }
+        catch
+        {
+            // Auto-install and start service via UAC elevation helper if service isn't running
+            ServiceInstallerHelper.EnsureServiceRunning();
+            await pipe.ConnectAsync(4_000, cancellationToken);
+        }
 
         var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, IpcJson.Options);
         await pipe.WriteAsync(requestBytes, cancellationToken);
