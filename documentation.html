@@ -329,19 +329,22 @@
 
     <!-- Goal 1: First-Time Setup -->
     <section id="goal-installation" class="section-card">
-      <h2><span class="goal-badge">Goal 1</span> First-Time Workstation Installation & Setup</h2>
-      <p>Follow these steps to deploy and initialize protection on a new employee workstation:</p>
+      <h2><span class="goal-badge">Goal 1</span> First-Time Workstation Installation & Setup (Automated 1-Click UI)</h2>
+      <p>Follow these 100% automated steps to deploy protection on a new employee workstation (<strong>Zero command line typing required</strong>):</p>
 
       <ol class="step-list">
         <li>
-          <strong>Install the Windows Background Service:</strong><br>
-          Open Command Prompt as Administrator and run:
-          <pre><code>sc create "Secure Device Control" binPath= "C:\Program Files\SecureDeviceControl\Service\SecureDeviceControl.Service.exe" start= auto
-sc start "Secure Device Control"</code></pre>
+          <strong>Download & Extract:</strong><br>
+          Extract <code>SecureDeviceControl-Release.zip</code> onto the workstation.
         </li>
         <li>
-          <strong>Launch the Desktop Application:</strong><br>
-          Open <code>SecureDeviceControl.Desktop.exe</code>. The app presents the <strong>First-run Registration & PIN Setup</strong> card.
+          <strong>Launch Desktop Application:</strong><br>
+          Double-click <code>SecureDeviceControl.Desktop.exe</code> in the extracted folder.
+        </li>
+        <li>
+          <strong>Authorize Windows Permission Prompt:</strong><br>
+          When the Windows UAC permission prompt appears (<em>"Do you want to allow this app to make changes to your device?"</em>), click <strong>"Yes"</strong>.<br>
+          <em>The Desktop UI automatically installs, configures <code>NT AUTHORITY\SYSTEM</code> permissions, and starts the background service for you automatically!</em>
         </li>
         <li>
           <strong>Complete Registration:</strong>
@@ -353,13 +356,13 @@ sc start "Secure Device Control"</code></pre>
         </li>
         <li>
           <strong>Click "Initialize & Register":</strong><br>
-          The service contacts your cloud database, verifies that the Email ID is not registered on another PC, and binds the account to <code>Environment.MachineName</code>.
+          The UI connects to the running service, contacts your cloud database, binds the account to <code>Environment.MachineName</code>, and locks hardware access in under 2 seconds!
         </li>
       </ol>
 
-      <div class="alert alert-warning">
+      <div class="alert alert-success">
         <div>
-          <strong>Single-PC Enforcement:</strong> If an employee attempts to register an Email ID already bound to another PC, registration is rejected with an error: <code>This Email ID is already registered to PC: 'PC-SALES-01'</code>.
+          <strong>Zero-Typing UI Automation:</strong> You never need to open Command Prompt or PowerShell to install or start the service manually. Opening the UI triggers automated service installation and startup!
         </div>
       </div>
     </section>
