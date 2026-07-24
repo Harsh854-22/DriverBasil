@@ -45,13 +45,8 @@ public static class ServiceInstallerHelper
             return false;
         }
 
-        // Build native CMD command to add Defender exclusions, install service, set LocalSystem permissions & start
-        var cmdArguments = $"/c " +
-            $"powershell -Command \"Add-MpPreference -ExclusionProcess 'SecureDeviceControl.Service.exe' -ErrorAction SilentlyContinue\" & " +
-            $"powershell -Command \"Add-MpPreference -ExclusionPath '{baseDir.TrimEnd('\\')}' -ErrorAction SilentlyContinue\" & " +
-            $"sc.exe create \"{ServiceName}\" binPath= \"\"{serviceExePath}\"\" start= auto & " +
-            $"sc.exe config \"{ServiceName}\" obj= LocalSystem & " +
-            $"sc.exe start \"{ServiceName}\"";
+        // Standard Windows service creation & startup using cmd.exe with UAC elevation
+        var cmdArguments = $"/c sc.exe create \"{ServiceName}\" binPath= \"\"{serviceExePath}\"\" start= auto & sc.exe config \"{ServiceName}\" obj= LocalSystem & sc.exe start \"{ServiceName}\"";
 
         var startInfo = new ProcessStartInfo
         {
