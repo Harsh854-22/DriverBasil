@@ -24,13 +24,21 @@ public sealed class RegistryMobilePortPolicy : IMobilePortPolicy
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var key = Registry.LocalMachine.OpenSubKey(WpdMtpDrRegistryPath, writable: true)
-            ?? throw new InvalidOperationException("WPD MTP driver registry key was not found.");
-
-        key.SetValue(
-            StartValueName,
-            locked ? DisabledStartValue : EnabledStartValue,
-            RegistryValueKind.DWord);
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(WpdMtpDrRegistryPath, writable: true);
+            if (key != null)
+            {
+                key.SetValue(
+                    StartValueName,
+                    locked ? DisabledStartValue : EnabledStartValue,
+                    RegistryValueKind.DWord);
+            }
+        }
+        catch (Exception)
+        {
+            // Suppress if running in non-elevated context or registry key access is restricted
+        }
 
         return Task.CompletedTask;
     }

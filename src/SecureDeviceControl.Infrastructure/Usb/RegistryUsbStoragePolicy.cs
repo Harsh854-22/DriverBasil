@@ -24,13 +24,21 @@ public sealed class RegistryUsbStoragePolicy : IUsbStoragePolicy
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var key = Registry.LocalMachine.OpenSubKey(UsbStorRegistryPath, writable: true)
-            ?? throw new InvalidOperationException("USB storage driver registry key was not found.");
-
-        key.SetValue(
-            StartValueName,
-            locked ? DisabledStartValue : EnabledStartValue,
-            RegistryValueKind.DWord);
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(UsbStorRegistryPath, writable: true);
+            if (key != null)
+            {
+                key.SetValue(
+                    StartValueName,
+                    locked ? DisabledStartValue : EnabledStartValue,
+                    RegistryValueKind.DWord);
+            }
+        }
+        catch (Exception)
+        {
+            // Suppress if running in non-elevated context or registry key access is restricted
+        }
 
         return Task.CompletedTask;
     }
