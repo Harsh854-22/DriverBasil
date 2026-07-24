@@ -183,8 +183,9 @@ public partial class MainWindow : Window
 
     private async Task RefreshStatusAsync()
     {
-        await RunUiActionAsync(async () =>
+        try
         {
+            MessageText.Text = "";
             var response = await ipcClient.SendAsync(IpcRequest.Create(IpcOperation.GetServiceStatus));
             EnsureSuccess(response);
             var status = ReadPayload<ServiceStatusDto>(response);
@@ -200,7 +201,17 @@ public partial class MainWindow : Window
 
             SetupPanel.Visibility = status.IsInitialized ? Visibility.Collapsed : Visibility.Visible;
             MainPanel.Visibility = status.IsInitialized ? Visibility.Visible : Visibility.Collapsed;
-        });
+        }
+        catch (Exception ex)
+        {
+            ServiceStatusText.Text = "Offline";
+            UserInfoText.Text = $"Unregistered ({Environment.MachineName})";
+            LockStatusText.Text = "Unknown";
+            UnlockTimerText.Text = "Inactive";
+            MessageText.Text = $"Protection Service is currently offline ({ex.Message}). Enter PINs and click 'Initialize & Register' to start automatically.";
+            SetupPanel.Visibility = Visibility.Visible;
+            MainPanel.Visibility = Visibility.Collapsed;
+        }
     }
 
     private async Task RunUiActionAsync(Func<Task> action)
