@@ -11,6 +11,11 @@ public sealed class IpcClient
 
     public async Task<IpcResponse> SendAsync(IpcRequest request, CancellationToken cancellationToken = default)
     {
+        // Overall operation timeout: 30 seconds max for any IPC round-trip
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+        var token = timeoutCts.Token;
+
         await using var pipe = new NamedPipeClientStream(
             ".",
             IpcPipeNames.PipeName,
@@ -19,21 +24,25 @@ public sealed class IpcClient
 
         try
         {
-            await pipe.ConnectAsync(1_500, cancellationToken);
+            await pipe.ConnectAsync(1_500, token);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // Caller cancelled, propagate immediately
         }
         catch
         {
             // Auto-install and start service via UAC elevation helper if service isn't running
             ServiceInstallerHelper.EnsureServiceRunning();
-            await pipe.ConnectAsync(4_000, cancellationToken);
+            await pipe.ConnectAsync(4_000, token);
         }
 
         var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, IpcJson.Options);
-        await pipe.WriteAsync(requestBytes, cancellationToken);
-        await pipe.WriteAsync("\n"u8.ToArray(), cancellationToken);
-        await pipe.FlushAsync(cancellationToken);
+        await pipe.WriteAsync(requestBytes, token);
+        await pipe.WriteAsync("\n"u8.ToArray(), token);
+        await pipe.FlushAsync(token);
 
-        var responseBytes = await ReadFrameAsync(pipe, cancellationToken);
+        var responseBytes = await ReadFrameAsync(pipe, token);
         return JsonSerializer.Deserialize<IpcResponse>(responseBytes, IpcJson.Options)
             ?? throw new InvalidOperationException("The service returned an empty response.");
     }

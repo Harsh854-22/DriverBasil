@@ -153,16 +153,28 @@ public sealed class DeviceControlCoordinator
 
         var machineName = Environment.MachineName;
 
+        // Attempt cloud registration with a strict 10-second timeout.
+        // If cloud is unreachable or slow, local registration proceeds immediately.
+        // The background SupabaseSyncWorker will retry cloud registration later.
         try
         {
-            await cloudRepository.RegisterDeviceAsync(userEmail, machineName, cancellationToken);
+            using var cloudCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cloudCts.CancelAfter(TimeSpan.FromSeconds(10));
+            await cloudRepository.RegisterDeviceAsync(userEmail, machineName, cloudCts.Token);
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already registered"))
         {
+            // Single-PC binding violation — this is a hard error
             throw new IpcRequestException(IpcErrorCode.BadRequest, ex.Message);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or TimeoutException or Npgsql.NpgsqlException or System.Net.Sockets.SocketException)
+        {
+            logger.LogWarning(ex, "Cloud registration timed out or failed. Local registration will proceed; cloud sync will retry automatically.");
         }
 
         await database.SetPolicySettingAsync("user_email", userEmail.Trim().ToLowerInvariant(), cancellationToken);
+        // Mark for background cloud sync retry
+        await database.SetPolicySettingAsync("cloud_registration_pending", "true", cancellationToken);
 
         await database.SetPinCredentialAsync(
             PinPurpose.DeviceUnlock,

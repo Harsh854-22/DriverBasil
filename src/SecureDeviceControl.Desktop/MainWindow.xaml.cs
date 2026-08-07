@@ -221,6 +221,18 @@ public partial class MainWindow : Window
             MessageText.Text = "";
             await action();
         }
+        catch (OperationCanceledException)
+        {
+            MessageText.Text = "Operation timed out. Please check your internet connection and try again.";
+        }
+        catch (System.IO.IOException)
+        {
+            MessageText.Text = "Could not connect to the background service. Please ensure the service is running and try again.";
+        }
+        catch (TimeoutException)
+        {
+            MessageText.Text = "Connection timed out. Please check your internet connection and try again.";
+        }
         catch (Exception ex)
         {
             MessageText.Text = ex.Message;
