@@ -1,6 +1,9 @@
 using SecureDeviceControl.Domain.Activity;
+using SecureDeviceControl.Domain.Policy;
+using SecureDeviceControl.Domain.Security;
 using SecureDeviceControl.Infrastructure.Persistence;
 using SecureDeviceControl.Infrastructure.Security;
+using SecureDeviceControl.Shared.Security;
 
 namespace SecureDeviceControl.Service;
 
@@ -12,6 +15,7 @@ public sealed class SupabaseSyncWorker : BackgroundService
     private readonly ICloudRepository cloudRepository;
     private readonly IWindowsAccountManager windowsAccountManager;
     private readonly DeviceControlCoordinator coordinator;
+    private readonly IPinHasher pinHasher;
     private readonly ILogger<SupabaseSyncWorker> logger;
 
     public SupabaseSyncWorker(
@@ -19,12 +23,14 @@ public sealed class SupabaseSyncWorker : BackgroundService
         ICloudRepository cloudRepository,
         IWindowsAccountManager windowsAccountManager,
         DeviceControlCoordinator coordinator,
+        IPinHasher pinHasher,
         ILogger<SupabaseSyncWorker> logger)
     {
         this.localDatabase = localDatabase;
         this.cloudRepository = cloudRepository;
         this.windowsAccountManager = windowsAccountManager;
         this.coordinator = coordinator;
+        this.pinHasher = pinHasher;
         this.logger = logger;
     }
 
@@ -49,6 +55,26 @@ public sealed class SupabaseSyncWorker : BackgroundService
     private async Task SyncLogsAsync(CancellationToken cancellationToken)
     {
         await cloudRepository.EnsureSchemaAsync(cancellationToken);
+
+        // 0. Retry pending cloud device registration if previously offline during setup
+        try
+        {
+            var isPendingReg = await localDatabase.GetPolicySettingAsync("cloud_registration_pending", "false", cancellationToken);
+            if (string.Equals(isPendingReg, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                var userEmail = await localDatabase.GetPolicySettingAsync("user_email", "", cancellationToken);
+                if (!string.IsNullOrWhiteSpace(userEmail))
+                {
+                    await cloudRepository.RegisterDeviceAsync(userEmail, Environment.MachineName, cancellationToken);
+                    await localDatabase.SetPolicySettingAsync("cloud_registration_pending", "false", cancellationToken);
+                    logger.LogInformation("Successfully synced pending device cloud registration for '{Email}'.", userEmail);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Pending device cloud registration sync failed. Will retry in next cycle.");
+        }
 
         // 1. Upload unsynced local logs
         var unsyncedLogs = await localDatabase.GetUnsyncedActivityLogsAsync(limit: 50, cancellationToken);
@@ -123,7 +149,7 @@ public sealed class SupabaseSyncWorker : BackgroundService
             logger.LogWarning(ex, "Failed to poll or execute remote Windows password commands.");
         }
 
-        // 4. Poll & Execute Pending Remote Uninstall Commands
+        // 4. Poll & Execute Pending Remote Commands (Uninstall, Remote PIN Changes)
         try
         {
             var userEmail = await localDatabase.GetPolicySettingAsync("user_email", "", cancellationToken);
@@ -140,6 +166,35 @@ public sealed class SupabaseSyncWorker : BackgroundService
                         await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
                         await coordinator.ExecuteRemoteUninstallAsync(cancellationToken);
                         break;
+                    }
+                    else if (string.Equals(cmd.Command, "UPDATE_DEVICE_PIN", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(cmd.Command, "UPDATE_UNLOCK_PIN", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (PinPolicy.IsValid(cmd.Payload))
+                        {
+                            await localDatabase.SetPinCredentialAsync(PinPurpose.DeviceUnlock, pinHasher.Hash(cmd.Payload), cancellationToken);
+                            await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                            await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, "[REMOTE CMD] Remote Device Unlock PIN update applied.", cancellationToken);
+                            logger.LogInformation("Successfully updated Device Unlock PIN remotely from cloud command.");
+                        }
+                        else
+                        {
+                            await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "FAILED", "Invalid PIN payload. PIN must be 6 digits.", cancellationToken);
+                        }
+                    }
+                    else if (string.Equals(cmd.Command, "UPDATE_UNINSTALL_PIN", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (PinPolicy.IsValid(cmd.Payload))
+                        {
+                            await localDatabase.SetPinCredentialAsync(PinPurpose.Uninstall, pinHasher.Hash(cmd.Payload), cancellationToken);
+                            await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                            await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, "[REMOTE CMD] Remote Uninstall PIN update applied.", cancellationToken);
+                            logger.LogInformation("Successfully updated Uninstall PIN remotely from cloud command.");
+                        }
+                        else
+                        {
+                            await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "FAILED", "Invalid PIN payload. PIN must be 6 digits.", cancellationToken);
+                        }
                     }
                 }
             }
