@@ -7,12 +7,35 @@ using SecureDeviceControl.Service.Ipc;
 
 using SecureDeviceControl.Infrastructure.Web;
 
+// CRITICAL: Windows Services start with CWD = C:\Windows\System32.
+// appsettings.json lives next to the EXE, so we must change directory
+// BEFORE Host.CreateApplicationBuilder reads configuration files.
+Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddWindowsService(options =>
 {
     options.ServiceName = "Secure Device Control";
 });
+
+// Prevent SupabaseSyncWorker / SoftwareUpdateWorker crashes from killing
+// the core service (Worker + NamedPipeServer). Cloud workers have their own
+// try/catch, but this is a safety net.
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+});
+
+// Add Windows Event Log as a fallback logging sink for diagnostics
+if (OperatingSystem.IsWindows())
+{
+    builder.Logging.AddEventLog(new Microsoft.Extensions.Logging.EventLog.EventLogSettings
+    {
+        SourceName = "SecureDeviceControl.Service",
+        LogName = "Application"
+    });
+}
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ProgramDataPaths>();

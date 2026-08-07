@@ -20,16 +20,27 @@ if (Test-Path $tempFolder) {
 }
 New-Item -ItemType Directory -Path $tempFolder | Out-Null
 
-# Copy binaries
-Copy-Item (Join-Path $repoRoot "artifacts\win-x64\service\SecureDeviceControl.Service.exe") $tempFolder
-Copy-Item (Join-Path $repoRoot "artifacts\win-x64\desktop\SecureDeviceControl.Desktop.exe") $tempFolder
+# Copy ALL published service files (EXE + DLLs + configs + appsettings.json)
+Write-Host "Copying service binaries..."
+Copy-Item -Path (Join-Path $repoRoot "artifacts\win-x64\service\*") -Destination $tempFolder -Recurse -Force
 
-# Copy installer scripts (copied directly into the flat folder)
-Copy-Item (Join-Path $PSScriptRoot "install-service.ps1") $tempFolder
-Copy-Item (Join-Path $PSScriptRoot "uninstall-service.ps1") $tempFolder
+# Copy ALL published desktop files (EXE + DLLs + configs)
+Write-Host "Copying desktop binaries..."
+Copy-Item -Path (Join-Path $repoRoot "artifacts\win-x64\desktop\*") -Destination $tempFolder -Recurse -Force
+
+# Copy installer and helper scripts
+Copy-Item (Join-Path $PSScriptRoot "install-service.ps1") $tempFolder -Force
+Copy-Item (Join-Path $PSScriptRoot "uninstall-service.ps1") $tempFolder -Force
 if (Test-Path (Join-Path $repoRoot "src\SecureDeviceControl.Desktop\Install-Service.cmd")) {
-    Copy-Item (Join-Path $repoRoot "src\SecureDeviceControl.Desktop\Install-Service.cmd") $tempFolder
+    Copy-Item (Join-Path $repoRoot "src\SecureDeviceControl.Desktop\Install-Service.cmd") $tempFolder -Force
 }
+if (Test-Path (Join-Path $repoRoot "update-service.cmd")) {
+    Copy-Item (Join-Path $repoRoot "update-service.cmd") $tempFolder -Force
+}
+
+# Remove PDB debug files and documentation from ZIP
+Get-ChildItem -Path $tempFolder -Filter "*.pdb" -Recurse | Remove-Item -Force
+Get-ChildItem -Path $tempFolder -Filter "documentation.html" -Recurse | Remove-Item -Force
 
 # Compress to ZIP at repository root
 $zipPath = Join-Path $repoRoot "SecureDeviceControl-Release.zip"
@@ -38,10 +49,10 @@ if (Test-Path $zipPath) {
     Remove-Item $zipPath -Force
 }
 
-# Use Compress-Archive
 Compress-Archive -Path "$tempFolder\*" -DestinationPath $zipPath
 
 # Clean up
 Remove-Item $tempFolder -Recurse -Force
 
 Write-Host "Successfully generated ZIP archive: SecureDeviceControl-Release.zip"
+

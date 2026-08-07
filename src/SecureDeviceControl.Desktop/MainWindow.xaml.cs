@@ -223,15 +223,15 @@ public partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            MessageText.Text = "Operation timed out. Please check your internet connection and try again.";
+            MessageText.Text = "The background service is still starting up. Please wait a moment and try again.";
         }
         catch (System.IO.IOException)
         {
-            MessageText.Text = "Could not connect to the background service. Please ensure the service is running and try again.";
+            MessageText.Text = "Could not connect to the background service. Please right-click 'Install-Service.cmd' → Run as administrator.";
         }
-        catch (TimeoutException)
+        catch (TimeoutException ex)
         {
-            MessageText.Text = "Connection timed out. Please check your internet connection and try again.";
+            MessageText.Text = ex.Message;
         }
         catch (Exception ex)
         {
