@@ -37,12 +37,8 @@ powershell -File .\scripts\package-zip.ps1
 ### Installation
 Once packaged, deploy to workstations using:
 1. Extract `SecureDeviceControl-Release.zip`.
-2. Open an elevated PowerShell session (Run as Administrator) in the extracted directory.
-3. Run the installer:
-   ```powershell
-   Set-ExecutionPolicy Bypass -Scope Process -Force
-   .\install-service.ps1
-   ```
+2. Double-click `SecureDeviceControl.Desktop.exe` — the app automatically installs, registers, and starts the background service via standard Windows UAC elevation (**Zero typing required!**).
+3. *(Optional Fallback)* Right-click `Install-Service.cmd` and select **"Run as administrator"** to pre-install the background service.
 
 ## Project Structure
 - `src/`: Main implementation files.
