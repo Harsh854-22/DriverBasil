@@ -27,6 +27,9 @@ Copy-Item (Join-Path $repoRoot "artifacts\win-x64\desktop\SecureDeviceControl.De
 # Copy installer scripts (copied directly into the flat folder)
 Copy-Item (Join-Path $PSScriptRoot "install-service.ps1") $tempFolder
 Copy-Item (Join-Path $PSScriptRoot "uninstall-service.ps1") $tempFolder
+if (Test-Path (Join-Path $repoRoot "src\SecureDeviceControl.Desktop\Install-Service.cmd")) {
+    Copy-Item (Join-Path $repoRoot "src\SecureDeviceControl.Desktop\Install-Service.cmd") $tempFolder
+}
 
 # Compress to ZIP at repository root
 $zipPath = Join-Path $repoRoot "SecureDeviceControl-Release.zip"
