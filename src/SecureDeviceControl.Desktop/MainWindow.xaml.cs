@@ -208,7 +208,7 @@ public partial class MainWindow : Window
             UserInfoText.Text = $"Unregistered ({Environment.MachineName})";
             LockStatusText.Text = "Unknown";
             UnlockTimerText.Text = "Inactive";
-            MessageText.Text = $"Protection Service is currently offline ({ex.Message}). Enter PINs and click 'Initialize & Register' to start automatically.";
+            MessageText.Text = $"Protection Service is unavailable ({ex.Message}). An administrator must install or repair the service before PIN setup.";
             SetupPanel.Visibility = Visibility.Visible;
             MainPanel.Visibility = Visibility.Collapsed;
         }
@@ -223,7 +223,7 @@ public partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            MessageText.Text = "The background service is still starting up. Please wait a moment and try again.";
+            MessageText.Text = "The operation was cancelled.";
         }
         catch (System.IO.IOException)
         {

@@ -12,6 +12,9 @@ if (Test-Path $dotnet) {
 # Run publish-release.ps1
 Write-Host "Running publish-release.ps1..."
 & (Join-Path $PSScriptRoot "publish-release.ps1")
+if ($LASTEXITCODE -ne 0) {
+    throw "Release publish failed with exit code $LASTEXITCODE."
+}
 
 # Create temporary package folder
 $tempFolder = Join-Path $repoRoot "temp-package"
@@ -37,10 +40,10 @@ if (Test-Path (Join-Path $repoRoot "src\SecureDeviceControl.Desktop\Install-Serv
 if (Test-Path (Join-Path $repoRoot "update-service.cmd")) {
     Copy-Item (Join-Path $repoRoot "update-service.cmd") $tempFolder -Force
 }
+Copy-Item (Join-Path $repoRoot "docs\documentation.html") (Join-Path $tempFolder "documentation.html") -Force
 
-# Remove PDB debug files and documentation from ZIP
+# Remove PDB debug files from ZIP
 Get-ChildItem -Path $tempFolder -Filter "*.pdb" -Recurse | Remove-Item -Force
-Get-ChildItem -Path $tempFolder -Filter "documentation.html" -Recurse | Remove-Item -Force
 
 # Compress to ZIP at repository root
 $zipPath = Join-Path $repoRoot "SecureDeviceControl-Release.zip"
@@ -55,4 +58,3 @@ Compress-Archive -Path "$tempFolder\*" -DestinationPath $zipPath
 Remove-Item $tempFolder -Recurse -Force
 
 Write-Host "Successfully generated ZIP archive: SecureDeviceControl-Release.zip"
-

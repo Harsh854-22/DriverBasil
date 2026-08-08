@@ -11,67 +11,37 @@ public sealed class IpcClient
 
     public async Task<IpcResponse> SendAsync(IpcRequest request, CancellationToken cancellationToken = default)
     {
-        // Overall operation timeout: 45 seconds max for any IPC round-trip.
-        // The 75MB self-contained single-file EXE can take 15-30s to self-extract
-        // on first launch, so we need generous time for initial service startup.
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(45));
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(8));
         var token = timeoutCts.Token;
 
-        // Phase 1: Quick connect attempt (service already running)
-        var pipe = CreatePipe();
+        await using var pipe = CreatePipe();
         try
         {
-            await pipe.ConnectAsync(1_500, token);
+            await pipe.ConnectAsync(5_000, token);
             return await SendOnPipeAsync(pipe, request, token);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
-        catch
+        catch (OperationCanceledException)
         {
-            await pipe.DisposeAsync();
+            throw new TimeoutException(
+                "The protection service did not respond. An administrator must install or repair the service before using this app.");
         }
-
-        // Phase 2: Service not running — auto-install and start
-        ServiceInstallerHelper.EnsureServiceRunning();
-
-        // Phase 3: Retry loop with backoff — wait for service to finish starting
-        // The single-file EXE needs to self-extract .NET runtime on first run.
-        const int maxRetries = 12;
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        catch (UnauthorizedAccessException ex)
         {
-            token.ThrowIfCancellationRequested();
-
-            // Wait before retrying (2s between attempts)
-            await Task.Delay(TimeSpan.FromSeconds(2), token);
-
-            pipe = CreatePipe();
-            try
-            {
-                await pipe.ConnectAsync(2_000, token);
-                return await SendOnPipeAsync(pipe, request, token);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch when (attempt < maxRetries)
-            {
-                await pipe.DisposeAsync();
-                // Continue retrying
-            }
-            catch
-            {
-                await pipe.DisposeAsync();
-                throw new TimeoutException(
-                    "The background service did not start in time. " +
-                    "Please right-click 'Install-Service.cmd' → Run as administrator, then try again.");
-            }
+            throw new InvalidOperationException(
+                "Windows denied access to the protection service. Ask an administrator to run the repair installer.",
+                ex);
         }
-
-        throw new TimeoutException("Could not connect to the background service.");
+        catch (IOException ex)
+        {
+            throw new InvalidOperationException(
+                "The protection service is unavailable. Ask an administrator to run Install-Service.ps1.",
+                ex);
+        }
     }
 
     private static NamedPipeClientStream CreatePipe()
@@ -88,17 +58,14 @@ public sealed class IpcClient
         IpcRequest request,
         CancellationToken token)
     {
-        await using (pipe)
-        {
-            var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, IpcJson.Options);
-            await pipe.WriteAsync(requestBytes, token);
-            await pipe.WriteAsync("\n"u8.ToArray(), token);
-            await pipe.FlushAsync(token);
+        var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, IpcJson.Options);
+        await pipe.WriteAsync(requestBytes, token);
+        await pipe.WriteAsync("\n"u8.ToArray(), token);
+        await pipe.FlushAsync(token);
 
-            var responseBytes = await ReadFrameAsync(pipe, token);
-            return JsonSerializer.Deserialize<IpcResponse>(responseBytes, IpcJson.Options)
-                ?? throw new InvalidOperationException("The service returned an empty response.");
-        }
+        var responseBytes = await ReadFrameAsync(pipe, token);
+        return JsonSerializer.Deserialize<IpcResponse>(responseBytes, IpcJson.Options)
+            ?? throw new InvalidOperationException("The service returned an empty response.");
     }
 
     private static async Task<byte[]> ReadFrameAsync(Stream stream, CancellationToken cancellationToken)

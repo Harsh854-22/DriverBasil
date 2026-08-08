@@ -13,6 +13,7 @@ using SecureDeviceControl.Service.Ipc;
 using SecureDeviceControl.Shared.Contracts;
 using SecureDeviceControl.Shared.Ipc;
 using SecureDeviceControl.Shared.Security;
+using SecureDeviceControl.Shared;
 
 namespace SecureDeviceControl.Service;
 
@@ -381,7 +382,7 @@ public sealed class DeviceControlCoordinator
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "cmd.exe",
-                Arguments = "/c timeout /t 2 && sc stop \"Secure Device Control\" && sc delete \"Secure Device Control\"",
+                Arguments = $"/c timeout /t 2 && sc stop \"{ServiceIdentity.ServiceName}\" && sc delete \"{ServiceIdentity.ServiceName}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };

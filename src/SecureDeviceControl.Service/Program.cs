@@ -4,6 +4,7 @@ using SecureDeviceControl.Infrastructure.Security;
 using SecureDeviceControl.Infrastructure.Usb;
 using SecureDeviceControl.Service;
 using SecureDeviceControl.Service.Ipc;
+using SecureDeviceControl.Shared;
 
 using SecureDeviceControl.Infrastructure.Web;
 
@@ -16,15 +17,7 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddWindowsService(options =>
 {
-    options.ServiceName = "Secure Device Control";
-});
-
-// Prevent SupabaseSyncWorker / SoftwareUpdateWorker crashes from killing
-// the core service (Worker + NamedPipeServer). Cloud workers have their own
-// try/catch, but this is a safety net.
-builder.Services.Configure<HostOptions>(options =>
-{
-    options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+    options.ServiceName = ServiceIdentity.ServiceName;
 });
 
 // Add Windows Event Log as a fallback logging sink for diagnostics

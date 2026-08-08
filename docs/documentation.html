@@ -1,607 +1,306 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Secure Device Control - Complete User & Administration Manual</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secure Device Control | Operations Guide</title>
   <style>
     :root {
-      --bg-main: #0B0F19;
-      --bg-card: #111827;
-      --bg-sidebar: #0F172A;
-      --accent-blue: #3B82F6;
-      --accent-green: #10B981;
-      --accent-purple: #8B5CF6;
-      --accent-red: #EF4444;
-      --accent-amber: #F59E0B;
-      --text-main: #F3F4F6;
-      --text-muted: #9CA3AF;
-      --border-color: #1F2937;
-      --code-bg: #1E293B;
+      --ink: #101828;
+      --ink-muted: #475467;
+      --paper: #f8fafc;
+      --paper-strong: #ffffff;
+      --line: #d0d5dd;
+      --accent: #0b74de;
+      --accent-dark: #075bb0;
+      --danger: #b42318;
+      --success: #067647;
+      --code: #172033;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
-      font-family: 'Outfit', sans-serif;
-      background-color: var(--bg-main);
-      color: var(--text-main);
-      line-height: 1.6;
-      display: flex;
-      min-height: 100vh;
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Segoe UI", Arial, sans-serif;
+      line-height: 1.55;
     }
 
-    /* Sidebar Navigation */
+    .shell { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100vh; }
     aside {
-      width: 300px;
-      background-color: var(--bg-sidebar);
-      border-right: 1px solid var(--border-color);
-      padding: 30px 20px;
-      position: fixed;
+      background: var(--ink);
+      color: #fff;
+      padding: 32px 24px;
+      position: sticky;
+      top: 0;
       height: 100vh;
-      overflow-y: auto;
     }
-
-    aside .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 30px;
-    }
-
-    aside .brand-logo {
-      width: 38px;
-      height: 38px;
-      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
+    .brand {
+      font-weight: 800;
       font-size: 20px;
-      color: white;
-    }
-
-    aside .brand-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: white;
-    }
-
-    aside ul {
-      list-style: none;
-    }
-
-    aside li {
-      margin-bottom: 6px;
-    }
-
-    aside a {
-      color: var(--text-muted);
-      text-decoration: none;
-      font-size: 13.5px;
-      font-weight: 500;
-      display: block;
-      padding: 9px 12px;
-      border-radius: 8px;
-      transition: all 0.2s;
-    }
-
-    aside a:hover, aside a.active {
-      color: white;
-      background-color: rgba(59, 130, 246, 0.15);
-      border-left: 3px solid var(--accent-blue);
-    }
-
-    /* Main Content Area */
-    main {
-      margin-left: 300px;
-      flex: 1;
-      padding: 40px 60px;
-      max-width: 1100px;
-    }
-
-    header {
-      margin-bottom: 40px;
-      padding-bottom: 24px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    header h1 {
-      font-size: 36px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #FFFFFF, #94A3B8);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 8px;
-    }
-
-    header p {
-      color: var(--text-muted);
-      font-size: 16px;
-    }
-
-    .section-card {
-      background-color: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 14px;
-      padding: 32px;
+      line-height: 1.05;
+      letter-spacing: .02em;
       margin-bottom: 36px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     }
-
-    h2 {
-      font-size: 24px;
-      font-weight: 700;
-      margin-bottom: 16px;
-      color: white;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    h2 .goal-badge {
-      background-color: rgba(59, 130, 246, 0.2);
-      color: var(--accent-blue);
-      font-size: 13px;
-      font-weight: 600;
-      padding: 4px 12px;
-      border-radius: 20px;
-      border: 1px solid rgba(59, 130, 246, 0.4);
-    }
-
-    h3 {
-      font-size: 18px;
-      font-weight: 600;
-      margin: 24px 0 12px 0;
-      color: var(--accent-blue);
-    }
-
-    p {
-      color: #CBD5E1;
-      margin-bottom: 16px;
-      font-size: 15px;
-    }
-
-    /* Alerts / Callouts */
-    .alert {
-      padding: 16px 20px;
-      border-radius: 10px;
-      margin: 20px 0;
-      display: flex;
-      align-items: flex-start;
-      gap: 14px;
+    .brand span { color: #7cc4ff; display: block; font-size: 12px; letter-spacing: .12em; margin-top: 10px; }
+    nav a {
+      color: #cbd5e1;
+      display: block;
       font-size: 14px;
+      padding: 7px 0;
+      text-decoration: none;
     }
+    nav a:hover { color: #fff; }
 
-    .alert-info {
-      background-color: rgba(59, 130, 246, 0.1);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      color: #93C5FD;
+    main { max-width: 1120px; padding: 0 56px 72px; }
+    header {
+      border-bottom: 1px solid var(--line);
+      padding: 74px 0 42px;
     }
-
-    .alert-success {
-      background-color: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #6EE7B7;
-    }
-
-    .alert-warning {
-      background-color: rgba(245, 158, 11, 0.1);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      color: #FDE68A;
-    }
-
-    /* Tables */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 20px 0;
-      font-size: 14px;
-    }
-
-    th, td {
-      padding: 12px 16px;
-      text-align: left;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    th {
-      background-color: #1E293B;
-      color: #F8FAFC;
-      font-weight: 600;
-    }
-
-    td {
-      color: #CBD5E1;
-    }
-
-    tr:hover td {
-      background-color: rgba(255, 255, 255, 0.02);
-    }
-
-    /* Code & SQL blocks */
-    pre, code {
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    pre {
-      background-color: var(--code-bg);
-      border: 1px solid #334155;
-      padding: 18px 20px;
-      border-radius: 10px;
-      overflow-x: auto;
-      margin: 18px 0;
-      font-size: 13.5px;
-      color: #E2E8F0;
-    }
-
-    code {
-      background-color: #1E293B;
-      color: #38BDF8;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 13px;
-    }
-
-    /* Badges */
-    .badge {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 6px;
+    .eyebrow {
+      color: var(--accent);
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
     }
-
-    .badge-off { background-color: #374151; color: #9CA3AF; }
-    .badge-on { background-color: rgba(16, 185, 129, 0.2); color: #34D399; }
-    .badge-selective { background-color: rgba(139, 92, 246, 0.2); color: #C084FC; }
-    .badge-blocked { background-color: rgba(239, 68, 68, 0.2); color: #FCA5A5; }
-
-    /* Steps Ordered List */
-    ol.step-list {
-      padding-left: 20px;
-      margin-bottom: 20px;
+    h1, h2, h3 { letter-spacing: 0; line-height: 1.02; }
+    h1 { font-size: clamp(42px, 6vw, 74px); margin: 14px 0 18px; max-width: 900px; }
+    h2 { font-size: 30px; margin: 0 0 18px; }
+    h3 { font-size: 18px; margin: 24px 0 8px; }
+    .lead { color: var(--ink-muted); font-size: 20px; max-width: 760px; margin: 0; }
+    section { border-bottom: 1px solid var(--line); padding: 46px 0; }
+    p { max-width: 900px; }
+    .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .panel {
+      background: var(--paper-strong);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 24px;
     }
-
-    ol.step-list li {
-      margin-bottom: 14px;
-      color: #CBD5E1;
+    .panel h3 { margin-top: 0; }
+    .callout {
+      border-left: 5px solid var(--accent);
+      background: #eaf4ff;
+      padding: 18px 20px;
+      margin: 22px 0;
+    }
+    .callout.warn { border-color: var(--danger); background: #fff1f0; }
+    .callout.good { border-color: var(--success); background: #ecfdf3; }
+    code { font-family: Consolas, "Courier New", monospace; color: #075bb0; }
+    pre {
+      background: var(--code);
+      border-radius: 8px;
+      color: #e6edf7;
+      overflow-x: auto;
+      padding: 18px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    pre code { color: inherit; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 13px 10px; text-align: left; vertical-align: top; }
+    th { color: var(--ink-muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    ul, ol { padding-left: 22px; }
+    li { margin: 8px 0; }
+    .tag {
+      display: inline-block;
+      background: var(--accent);
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 9px;
+    }
+    .tag.off { background: #667085; }
+    .tag.warning { background: var(--danger); }
+    footer { color: var(--ink-muted); font-size: 13px; padding: 34px 0; }
+    @media (max-width: 850px) {
+      .shell { display: block; }
+      aside { height: auto; position: static; }
+      nav { display: none; }
+      main { padding: 0 22px 44px; }
+      header { padding-top: 48px; }
+      .split { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
+  <div class="shell">
+    <aside>
+      <div class="brand">SECURE DEVICE CONTROL<span>OPERATIONS GUIDE</span></div>
+      <nav>
+        <a href="#start">Start here</a>
+        <a href="#install">Install and repair</a>
+        <a href="#workflow">Daily workflow</a>
+        <a href="#permissions">Permissions and security</a>
+        <a href="#activities">Activities and testing</a>
+        <a href="#remote">Remote-management boundary</a>
+        <a href="#support">Troubleshooting</a>
+      </nav>
+    </aside>
 
-  <aside>
-    <div class="brand">
-      <div class="brand-logo">S</div>
-      <div class="brand-title">Secure Device Control</div>
-    </div>
-    <nav>
-      <ul>
-        <li><a href="#overview" class="active">1. Security Architecture</a></li>
-        <li><a href="#goal-installation">Goal 1: First-Time Setup</a></li>
-        <li><a href="#goal-desktop">Goal 2: Desktop Usage</a></li>
-        <li><a href="#goal-forensics">Goal 3: File Transfer Logs</a></li>
-        <li><a href="#goal-web-email">Goal 4: Web & Email Filters</a></li>
-        <li><a href="#goal-block-page">Goal 5: Block Warning Page</a></li>
-        <li><a href="#goal-vpn">Goal 6: VPN Blocking</a></li>
-        <li><a href="#goal-win-password">Goal 7: Remote Windows Passwords</a></li>
-        <li><a href="#goal-auto-updater">Goal 8: Remote Auto-Updater</a></li>
-        <li><a href="#goal-remote-uninstall">Goal 9: Remote Uninstallation</a></li>
-        <li><a href="#goal-sql-reference">Goal 10: Database SQL Reference</a></li>
-      </ul>
-    </nav>
-  </aside>
+    <main>
+      <header>
+        <div class="eyebrow">Windows 10 and Windows 11</div>
+        <h1>Local hardware control that installs predictably.</h1>
+        <p class="lead">A two-PIN Windows Service for USB-storage and mobile-device control. This guide is written for both office administrators and the people who support the PCs.</p>
+      </header>
 
-  <main>
-    <header>
-      <h1>Secure Device Control User & Administrator Manual</h1>
-      <p>Complete Inside-Out Operational Guide & Step-by-Step Goal Workflows</p>
-    </header>
-
-    <!-- Section 1: Security Architecture -->
-    <section id="overview" class="section-card">
-      <h2><span class="goal-badge">Section 1</span> Inside-Out Security Architecture</h2>
-      <p><strong>Secure Device Control</strong> is an endpoint security & compliance suit designed for company workstations. It provides hardware port lockdown, real-time file copy forensic logging, web/email domain filtering, desktop/browser VPN blocking, and central cloud database remote management.</p>
-
-      <div class="alert alert-success">
-        <div>
-          <strong>Zero Plaintext PIN Guarantee:</strong><br>
-          PINs are <strong>NEVER stored in plaintext</strong> anywhere on disk or in database tables. All PINs use <strong>Argon2id</strong> key derivation (16-byte random salt, 64 MB memory cost, 3 iterations) combined with Windows <strong>DPAPI</strong> payload encryption tied strictly to the local <code>NT AUTHORITY\SYSTEM</code> account.
+      <section id="start">
+        <h2>Start Here</h2>
+        <div class="callout good">
+          <strong>No API key is required for local device protection.</strong> The packaged desktop and service are self-contained. The administrator installs the service once, then the desktop app communicates only through the local Windows service.
         </div>
-      </div>
-
-      <h3>Core Security Hardening Rules</h3>
-      <ul>
-        <li><strong>Protected Background Service:</strong> Runs under <code>NT AUTHORITY\SYSTEM</code>. Standard employee accounts cannot kill or terminate the service process.</li>
-        <li><strong>5-Second Self-Healing Loop:</strong> Continuously monitors Windows Registry keys (<code>USBSTOR</code>, <code>WpdMtpDr</code>) and system <code>hosts</code> filter rules. Any manual tampering by users is automatically reverted within 5 seconds.</li>
-        <li><strong>Single-PC Email Licensing:</strong> Binds user Email IDs to individual PC machine names (<code>registered_devices</code> table). The same Email ID cannot be registered on multiple PCs.</li>
-      </ul>
-    </section>
-
-    <!-- Goal 1: First-Time Setup -->
-    <section id="goal-installation" class="section-card">
-      <h2><span class="goal-badge">Goal 1</span> First-Time Workstation Installation & Setup (Automated 1-Click UI)</h2>
-      <p>Follow these 100% automated steps to deploy protection on a new employee workstation (<strong>Zero command line typing required</strong>):</p>
-
-      <ol class="step-list">
-        <li>
-          <strong>Download & Extract:</strong><br>
-          Extract <code>SecureDeviceControl-Release.zip</code> onto the workstation.
-        </li>
-        <li>
-          <strong>Launch Desktop Application:</strong><br>
-          Double-click <code>SecureDeviceControl.Desktop.exe</code> in the extracted folder.
-        </li>
-        <li>
-          <strong>Authorize Windows Permission Prompt:</strong><br>
-          When the Windows UAC permission prompt appears (<em>"Do you want to allow this app to make changes to your device?"</em>), click <strong>"Yes"</strong>.<br>
-          <em>The Desktop UI automatically installs, configures <code>NT AUTHORITY\SYSTEM</code> permissions, and starts the background service for you automatically!</em>
-        </li>
-        <li>
-          <strong>Complete Registration:</strong>
-          <ul>
-            <li><strong>User Email ID:</strong> Enter the employee's corporate email address (e.g., <code>john@company.com</code>).</li>
-            <li><strong>Device Unlock PIN:</strong> Enter a 6-digit PIN used to temporarily unlock ports or modify settings.</li>
-            <li><strong>Uninstall PIN:</strong> Enter a separate 6-digit PIN used exclusively for uninstall authorization.</li>
-          </ul>
-        </li>
-        <li>
-          <strong>Click "Initialize & Register":</strong><br>
-          The UI connects to the running service, contacts your cloud database, binds the account to <code>Environment.MachineName</code>, and locks hardware access in under 2 seconds!
-        </li>
-      </ol>
-
-      <div class="alert alert-success">
-        <div>
-          <strong>Zero-Typing UI Automation:</strong> You never need to open Command Prompt or PowerShell to install or start the service manually. Opening the UI triggers automated service installation and startup!
+        <div class="split">
+          <div class="panel">
+            <h3>Package contents</h3>
+            <ul>
+              <li><code>SecureDeviceControl.Desktop.exe</code>: administrator interface.</li>
+              <li><code>SecureDeviceControl.Service.exe</code>: privileged Windows Service.</li>
+              <li><code>install-service.ps1</code>: approved installation and repair script.</li>
+              <li><code>Install-Service.cmd</code>: convenience launcher for the installer.</li>
+              <li><code>uninstall-service.ps1</code>: PIN-authorized removal script.</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>Before deploying to 50 PCs</h3>
+            <ul>
+              <li>Test the package on two representative non-production PCs.</li>
+              <li>Use a Windows administrator account for installation.</li>
+              <li>Give ordinary employees standard-user accounts, not local administrator rights.</li>
+              <li>Create different, non-reused six-digit PINs for each PC.</li>
+            </ul>
+          </div>
         </div>
-      </div>
-
-      <div class="alert alert-info">
-        <div>
-          <strong>1-Click Batch Installer Fallback:</strong> If you prefer to pre-install the background service before opening the UI, simply right-click <code>Install-Service.cmd</code> inside the extracted folder and select <strong>"Run as administrator"</strong>.
+        <div class="callout warn">
+          <strong>Important:</strong> the legacy package contained a direct cloud database credential. Rotate that credential in the provider dashboard and discard every old ZIP or extracted copy. The corrected release does not package a cloud credential.
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Goal 2: Desktop Usage -->
-    <section id="goal-desktop" class="section-card">
-      <h2><span class="goal-badge">Goal 2</span> Daily Employee & Desktop Operations</h2>
-      <p>Managing hardware port locks directly from the employee Desktop UI:</p>
+      <section id="install">
+        <h2>Install And Repair</h2>
+        <p>The desktop application does not create a Windows service or request elevated access itself. This is intentional: service installation is an explicit, auditable administrator action.</p>
+        <h3>Normal installation</h3>
+        <ol>
+          <li>Extract <code>SecureDeviceControl-Release.zip</code> to a local folder.</li>
+          <li>Open PowerShell with <strong>Run as administrator</strong>.</li>
+          <li>Run the following commands from the extracted folder.</li>
+        </ol>
+        <pre><code>Set-Location "C:\Path\To\SecureDeviceControl-Release"
+Unblock-File -Path .\*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1
+sc.exe query SecureDeviceControl</code></pre>
+        <p>The expected result is <code>STATE : 4 RUNNING</code>. The installed service runs as <code>LocalSystem</code> and its binary is copied into <code>C:\Program Files\SecureDeviceControl</code>.</p>
 
-      <h3>1. Port Lockdown Controls</h3>
-      <ul>
-        <li><strong>Lock USB Pendrives:</strong> Click <code>Lock / Disable</code> under Pendrive Protection. Restores <code>USBSTOR</code> registry key to disabled state (<code>4</code>).</li>
-        <li><strong>Lock Mobile Devices (MTP):</strong> Click <code>Lock / Disable</code> under Mobile Device Protection. Restores <code>WpdMtpDr</code> registry key to disabled state (<code>4</code>).</li>
-        <li><strong>Instant Lock:</strong> Ports can be locked instantly without entering a PIN.</li>
-      </ul>
-
-      <h3>2. Temporary 15-Minute PIN Unlock</h3>
-      <ol class="step-list">
-        <li>Enter the 6-digit <strong>Device Unlock PIN</strong> into the PIN field.</li>
-        <li>Click <code>Unlock All for 15 min</code>.</li>
-        <li>Ports remain unlocked for file transfers until the 15-minute countdown timer expires, after which ports automatically re-lock.</li>
-      </ol>
-    </section>
-
-    <!-- Goal 3: File Transfer Logs -->
-    <section id="goal-forensics" class="section-card">
-      <h2><span class="goal-badge">Goal 3</span> Real-Time File Transfer Forensic Auditing</h2>
-      <p>Even if an employee manages to unlock a port or insert a USB drive, <strong>every file copy operation is monitored in real-time</strong>.</p>
-
-      <h3>What Gets Audited</h3>
-      <ul>
-        <li><strong>WHEN:</strong> Exact UTC timestamp of the file write event.</li>
-        <li><strong>HOW:</strong> Targeted drive letter (e.g., <code>E:\</code>) and volume label.</li>
-        <li><strong>WHAT:</strong> Target file name, extension, and exact file size in KB/MB.</li>
-        <li><strong>WHO & WHERE:</strong> Employee Email ID and PC Machine Name.</li>
-      </ul>
-
-      <h3>Sample Database Audit Record (<code>activity_logs</code>)</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Machine Name</th>
-            <th>User Email</th>
-            <th>Timestamp (UTC)</th>
-            <th>Event Type</th>
-            <th>Message</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>DESKTOP-BASIL-01</code></td>
-            <td><code>john@company.com</code></td>
-            <td><code>2026-07-20 00:15:10</code></td>
-            <td><code>FileTransferDetected</code></td>
-            <td><code>[FILE WRITE] 'Financial_Report.xlsx' (1450 KB) written to removable drive E:\.</code></td>
-          </tr>
-          <tr>
-            <td><code>DESKTOP-BASIL-01</code></td>
-            <td><code>john@company.com</code></td>
-            <td><code>2026-07-20 00:15:42</code></td>
-            <td><code>FileTransferDetected</code></td>
-            <td><code>[FILE WRITE] 'SourceCode.zip' (15600 KB) written to removable drive E:\.</code></td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- Goal 4: Web & Email Filters -->
-    <section id="goal-web-email" class="section-card">
-      <h2><span class="goal-badge">Goal 4</span> Per-PC Web Domain & Email Restriction Control</h2>
-      <p>Configure selective website access and webmail restrictions for specific PCs right from your Supabase <code>device_policies</code> table:</p>
-
-      <h3>1. Selective Website Whitelisting (`web_filter_mode`)</h3>
-      <p>To restrict an employee to <strong>ONLY specific approved websites</strong> (e.g., <code>google.com</code> and <code>mail.google.com</code>):</p>
-
-      <pre><code>UPDATE device_policies
-SET web_filter_mode = 'SELECTIVE',
-    allowed_websites = 'google.com, mail.google.com',
-    updated_at = NOW()
-WHERE email_id = 'employee@company.com';</code></pre>
-
-      <p><strong>Result:</strong> Access to all unapproved websites and distracting social networks is eliminated. Only <code>google.com</code> and <code>mail.google.com</code> are accessible.</p>
-
-      <h3>2. Corporate Email Domain Restrictions (`email_filter_mode`)</h3>
-      <p>To block personal webmails (Gmail, Yahoo, Outlook, Temp-Mail) and limit email sending strictly to authorized corporate email domains:</p>
-
-      <pre><code>UPDATE device_policies
-SET email_filter_mode = 'RESTRICTED',
-    allowed_email_domains = 'company.com',
-    updated_at = NOW()
-WHERE email_id = 'employee@company.com';</code></pre>
-    </section>
-
-    <!-- Goal 5: Block Warning Page -->
-    <section id="goal-block-page" class="section-card">
-      <h2><span class="goal-badge">Goal 5</span> Custom "Access Restricted" Warning Page</h2>
-      <p>When an employee attempts to open a blocked domain or unauthorized webmail, standard HTTP requests are redirected to a local HTTP listener serving a professional block page:</p>
-
-      <div class="alert alert-warning">
-        <div>
-          <strong>🔒 ACCESS RESTRICTED</strong><br>
-          This website, email service, or network connection has been restricted by your organization's security policy.<br>
-          <strong>KINDLY CONTACT YOUR IT ADMINISTRATOR.</strong><br><br>
-          <small>PC: DESKTOP-SALES-01 &nbsp;|&nbsp; User: employee@company.com</small>
+        <h3>Repair this specific startup failure</h3>
+        <p>Use this only when Event Viewer reports <code>SQLite Error 14: unable to open database file</code>, or when the old package created both <code>SecureDeviceControl</code> and <code>Secure Device Control</code>.</p>
+        <pre><code>Set-Location "C:\Path\To\SecureDeviceControl-Release"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1 -MigrateLegacyService -ResetLocalData
+sc.exe query SecureDeviceControl</code></pre>
+        <div class="callout warn">
+          <strong>What repair changes:</strong> it removes only the obsolete duplicate service and moves existing <code>secure-device-control.db</code>, <code>-wal</code>, and <code>-shm</code> files into a timestamped <code>C:\ProgramData\SecureDeviceControl\recovery</code> folder. It does not delete them. You will need to create the two PINs again after a reset.
         </div>
-      </div>
-    </section>
 
-    <!-- Goal 6: VPN Blocking -->
-    <section id="goal-vpn" class="section-card">
-      <h2><span class="goal-badge">Goal 6</span> Desktop & Browser Extension VPN Blocking</h2>
-      <p>Prevent employees from bypassing web filters using VPN software or browser extension proxies.</p>
+        <h3>Validate the installation</h3>
+        <pre><code>Get-Service SecureDeviceControl | Format-List Name,Status,StartType,DisplayName
+sc.exe qc SecureDeviceControl
+Get-WinEvent -FilterHashtable @{ LogName = "Application"; StartTime = (Get-Date).AddMinutes(-10) } |
+  Where-Object { $_.Message -match "SecureDeviceControl|SQLite Error" } |
+  Select-Object TimeCreated, Id, LevelDisplayName, Message |
+  Format-List</code></pre>
+      </section>
 
-      <h3>1. How to Enable VPN Blocking</h3>
-      <pre><code>UPDATE device_policies
-SET vpn_filter_mode = 'BLOCKED',
-    updated_at = NOW()
-WHERE email_id = 'employee@company.com';</code></pre>
+      <section id="workflow">
+        <h2>Daily Workflow</h2>
+        <table>
+          <thead><tr><th>Who</th><th>Action</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>Windows administrator</td><td>Installs or repairs the service with UAC approval.</td><td>The device policy service starts automatically at boot.</td></tr>
+            <tr><td>Administrator in the desktop app</td><td>First use: enter an email label, a six-digit Device Unlock PIN, and a different six-digit Uninstall PIN.</td><td>PIN credentials are hashed and protected locally; USB storage and MTP are locked by default.</td></tr>
+            <tr><td>Authorized operator</td><td>Enter the Device Unlock PIN and choose a temporary unlock or explicit device enable.</td><td>Access is enabled for the selected period; activity is recorded.</td></tr>
+            <tr><td>Administrator</td><td>Enter the separate Uninstall PIN, then use the generated authorization with the uninstall script.</td><td>Uninstall authorization lasts ten minutes.</td></tr>
+          </tbody>
+        </table>
+        <h3>Use the two PINs correctly</h3>
+        <ul>
+          <li><strong>Device Unlock PIN:</strong> permits pendrive/mobile unlock actions. Use six digits and do not reuse it as the uninstall PIN.</li>
+          <li><strong>Uninstall PIN:</strong> creates a short-lived removal authorization. Store it separately from the Device Unlock PIN.</li>
+          <li>Do not use example PINs, staff birthdays, or one company-wide PIN.</li>
+        </ul>
+      </section>
 
-      <h3>What Gets Blocked</h3>
-      <ul>
-        <li><strong>Windows Desktop VPN Software:</strong> Automatically terminates processes for <code>NordVPN</code>, <code>ExpressVPN</code>, <code>ProtonVPN</code>, <code>Windscribe</code>, <code>TunnelBear</code>, <code>OpenVPN</code>, <code>WireGuard</code>, <code>HotspotShield</code>, <code>CyberGhost</code>, <code>Surfshark</code>.</li>
-        <li><strong>Browser Extension VPNs & Proxies:</strong> Blocks domain resolution for extension proxy tunnels (<code>touchvpn.net</code>, <code>hola.org</code>, <code>zenmate.com</code>, <code>browsec.com</code>, <code>urban-vpn.com</code>, <code>setupvpn.com</code>, <code>betternet.co</code>).</li>
-      </ul>
+      <section id="permissions">
+        <h2>Permissions And Security</h2>
+        <div class="split">
+          <div class="panel">
+            <h3>What receives privilege</h3>
+            <p>Only <code>SecureDeviceControl</code> runs with <code>LocalSystem</code> rights. It owns registry policy changes and local audit storage. The desktop app has no code path that creates, stops, or changes the service.</p>
+          </div>
+          <div class="panel">
+            <h3>Protected locations</h3>
+            <p><code>C:\Program Files\SecureDeviceControl</code> and <code>C:\ProgramData\SecureDeviceControl</code> grant full control to <code>SYSTEM</code> and local Administrators. Standard users do not receive write access.</p>
+          </div>
+        </div>
+        <ul>
+          <li>PINs use Argon2id hashes and DPAPI-protected records.</li>
+          <li>PIN attempts are rate-limited after repeated invalid entries.</li>
+          <li>Service restarts are configured through Windows Service Control Manager recovery actions.</li>
+          <li>Windows administrators can still disable or remove third-party software. This product resists standard-user bypasses; it does not claim to be impossible for an unrestricted administrator to bypass.</li>
+        </ul>
+      </section>
 
-      <h3>2. How to Unblock VPN Access for a Specific Employee</h3>
-      <pre><code>UPDATE device_policies
-SET vpn_filter_mode = 'OFF',
-    updated_at = NOW()
-WHERE email_id = 'authorized_user@company.com';</code></pre>
-    </section>
+      <section id="activities">
+        <h2>Activities And Testing</h2>
+        <p>Use the desktop app's <strong>Load logs</strong> action after validating the service. Local activity records include service starts, PIN validation events, policy changes, temporary unlocks, and detected removable-drive writes.</p>
+        <h3>Release acceptance test</h3>
+        <ol>
+          <li>Install on a test PC using the normal installation commands.</li>
+          <li>Verify the service is running and the desktop reports <strong>Needs Registration</strong>.</li>
+          <li>Set two distinct PINs, attach a test pendrive, and verify it is blocked.</li>
+          <li>Unlock for 15 minutes with the Device Unlock PIN and verify access.</li>
+          <li>Restart Windows, then verify the service starts automatically and the policy is restored.</li>
+          <li>Enter an incorrect PIN five times and verify the temporary lockout.</li>
+          <li>Use the Uninstall PIN flow only on a disposable test machine.</li>
+        </ol>
+        <div class="callout">
+          The automated suite validates policy logic, PIN rules, rate limiting, IPC session checks, and stress loops. It does not replace live hardware, reboot, service-account, or standard-user tests on your actual Windows image.
+        </div>
+      </section>
 
-    <!-- Goal 7: Remote Windows Passwords -->
-    <section id="goal-win-password" class="section-card">
-      <h2><span class="goal-badge">Goal 7</span> Database-Driven Remote Windows Password Reset</h2>
-      <p>Reset or change a local Windows user account sign-in password remotely from your central database:</p>
+      <section id="remote">
+        <h2>Remote Management Boundary</h2>
+        <p><span class="tag off">NOT ENABLED FOR DEPLOYMENT</span></p>
+        <p>The corrected release operates locally. It does not include a cloud credential and should not be configured with direct database access from every PC.</p>
+        <table>
+          <thead><tr><th>Requested capability</th><th>Release status</th><th>Production-safe direction</th></tr></thead>
+          <tbody>
+            <tr><td>Remote policies and activity dashboard</td><td>Not enabled</td><td>Authenticated HTTPS management API with per-device enrollment and least-privilege tokens.</td></tr>
+            <tr><td>Website or VPN blocking</td><td>Not a reliable security control in this release</td><td>Windows Defender Firewall, WDAC/AppLocker, DNS security, and centrally managed policy.</td></tr>
+            <tr><td>Email sending restrictions</td><td>Not implemented as a mail-security control</td><td>Microsoft 365, Google Workspace, or a DLP/mail gateway policy.</td></tr>
+            <tr><td>Remote Windows-password changes</td><td>Disabled</td><td>Active Directory or Entra identity workflow. Never store raw passwords in an endpoint database.</td></tr>
+            <tr><td>Silent updates to one or many PCs</td><td>Disabled</td><td>Signed MSI/MSIX, authenticated release manifest, rollback plan, and staged deployment ring.</td></tr>
+          </tbody>
+        </table>
+      </section>
 
-      <pre><code>INSERT INTO windows_password_commands (email_id, machine_name, target_username, new_password)
-VALUES ('employee@company.com', 'DESKTOP-BASIL-01', 'JohnDoe', 'NewSecurePass#2026!');</code></pre>
+      <section id="support">
+        <h2>Troubleshooting</h2>
+        <table>
+          <thead><tr><th>Symptom</th><th>Meaning</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>"Service is starting" for more than a minute</td><td>Old build behavior hid the real service error.</td><td>Install the corrected package and run the repair command above if Event Viewer mentions SQLite Error 14.</td></tr>
+            <tr><td>"Access denied" from desktop</td><td>Service IPC or installation is unavailable.</td><td>Use an administrator account to run the installer, then query <code>SecureDeviceControl</code>.</td></tr>
+            <tr><td>Two service names appear</td><td>A legacy install is present.</td><td>Run installer with <code>-MigrateLegacyService</code>.</td></tr>
+            <tr><td>USB policy does not change</td><td>The service may not be running or group policy may override the registry.</td><td>Check service status and Windows Event Viewer; validate on a test PC before broad deployment.</td></tr>
+          </tbody>
+        </table>
+      </section>
 
-      <p><strong>Execution:</strong> The background service (`NT AUTHORITY\SYSTEM`) fetches the pending command within 30 seconds, resets the Windows account password using `UserPrincipal.SetPassword()`, sets `status = 'COMPLETED'`, and logs an audit record to `activity_logs`.</p>
-    </section>
-
-    <!-- Goal 8: Remote Auto-Updater -->
-    <section id="goal-auto-updater" class="section-card">
-      <h2><span class="goal-badge">Goal 8</span> Remote Software Auto-Updater & Staged Testing</h2>
-      <p>Push software updates to employee workstations safely using staged beta testing:</p>
-
-      <h3>Step 1: Test Update on a Specific Test Machine</h3>
-      <pre><code>INSERT INTO software_updates (version, download_url, sha256_hash, target_machine)
-VALUES ('1.1.0', 'https://github.com/Harsh854-22/DriverBasil/releases/download/v1.1.0/installer.exe', 'A3F982B7...', 'DESKTOP-BASIL-01');</code></pre>
-
-      <h3>Step 2: Deploy Update Globally to All PCs (Once Verified)</h3>
-      <pre><code>INSERT INTO software_updates (version, download_url, sha256_hash, target_machine)
-VALUES ('1.1.0', 'https://github.com/Harsh854-22/DriverBasil/releases/download/v1.1.0/installer.exe', 'A3F982B7...', 'ALL');</code></pre>
-
-      <p><strong>Security:</strong> The service verifies the SHA-256 checksum before executing the installer. If the hash does not match, the update is discarded.</p>
-    </section>
-
-    <!-- Goal 9: Remote Uninstallation -->
-    <section id="goal-remote-uninstall" class="section-card">
-      <h2><span class="goal-badge">Goal 9</span> Database Remote Software Uninstallation</h2>
-      <p>To remotely remove/uninstall the software from an employee workstation:</p>
-
-      <pre><code>INSERT INTO remote_commands (email_id, machine_name, command)
-VALUES ('employee@company.com', 'DESKTOP-EMPLOYEE-01', 'UNINSTALL');</code></pre>
-
-      <p><strong>Sequence:</strong> Restores hardware ports, removes web/email domain rules, logs final audit record, and unregisters/deletes the Windows background service (`sc delete "Secure Device Control"`).</p>
-    </section>
-
-    <!-- Goal 10: SQL Reference -->
-    <section id="goal-sql-reference" class="section-card">
-      <h2><span class="goal-badge">Goal 10</span> Central Database SQL Reference Cheat Sheet</h2>
-
-      <h3>1. Registered Devices Table (`registered_devices`)</h3>
-      <pre><code>CREATE TABLE IF NOT EXISTS registered_devices (
-    email_id TEXT PRIMARY KEY,
-    machine_name TEXT NOT NULL,
-    registered_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
-);</code></pre>
-
-      <h3>2. Per-PC Device Policies Table (`device_policies`)</h3>
-      <pre><code>CREATE TABLE IF NOT EXISTS device_policies (
-    email_id TEXT PRIMARY KEY,
-    machine_name TEXT NOT NULL,
-    web_filter_mode TEXT NOT NULL DEFAULT 'OFF', -- 'OFF', 'SELECTIVE', 'BLOCKLIST'
-    allowed_websites TEXT NOT NULL DEFAULT '',
-    blocked_websites TEXT NOT NULL DEFAULT '',
-    email_filter_mode TEXT NOT NULL DEFAULT 'OFF', -- 'OFF', 'RESTRICTED'
-    allowed_email_domains TEXT NOT NULL DEFAULT 'company.com',
-    vpn_filter_mode TEXT NOT NULL DEFAULT 'OFF', -- 'OFF', 'BLOCKED'
-    updated_at TIMESTAMPTZ NOT NULL
-);</code></pre>
-
-      <h3>3. Remote Commands Table (`remote_commands`)</h3>
-      <pre><code>CREATE TABLE IF NOT EXISTS remote_commands (
-    id BIGSERIAL PRIMARY KEY,
-    email_id TEXT NOT NULL,
-    machine_name TEXT NOT NULL,
-    command TEXT NOT NULL, -- 'UNINSTALL'
-    payload TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'PENDING',
-    error_message TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    executed_at TIMESTAMPTZ
-);</code></pre>
-
-      <h3>4. Windows Password Commands Table (`windows_password_commands`)</h3>
-      <pre><code>CREATE TABLE IF NOT EXISTS windows_password_commands (
-    id BIGSERIAL PRIMARY KEY,
-    email_id TEXT NOT NULL,
-    machine_name TEXT NOT NULL,
-    target_username TEXT NOT NULL,
-    new_password TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'PENDING',
-    error_message TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    executed_at TIMESTAMPTZ
-);</code></pre>
-
-      <h3>5. Software Updates Table (`software_updates`)</h3>
-      <pre><code>CREATE TABLE IF NOT EXISTS software_updates (
-    id BIGSERIAL PRIMARY KEY,
-    version TEXT NOT NULL,
-    download_url TEXT NOT NULL,
-    sha256_hash TEXT NOT NULL,
-    mandatory BOOLEAN NOT NULL DEFAULT FALSE,
-    target_machine TEXT NOT NULL DEFAULT 'ALL',
-    released_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);</code></pre>
-    </section>
-  </main>
-
+      <footer>Secure Device Control | Local device-protection release guide</footer>
+    </main>
+  </div>
 </body>
 </html>
