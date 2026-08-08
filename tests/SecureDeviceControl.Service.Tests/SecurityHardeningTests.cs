@@ -467,6 +467,46 @@ public sealed class SecurityHardeningTests : IDisposable
         Assert.Equal(Environment.MachineName, status.MachineName);
     }
 
+    [Fact]
+    public async Task InitializeAsync_WhenNotRegistered_ShouldLeavePortsUnlocked()
+    {
+        await coordinator.InitializeAsync(CancellationToken.None);
+
+        var status = await coordinator.GetStatusAsync(CancellationToken.None);
+
+        Assert.False(status.IsInitialized);
+        Assert.False(status.IsUsbStorageLocked);
+        Assert.False(status.IsMobilePortLocked);
+    }
+
+    [Fact]
+    public async Task InitializePins_With_StalePinsButNoEmail_Should_ReplacePinsAndCompleteRegistration()
+    {
+        await coordinator.InitializeAsync(CancellationToken.None);
+        await database.SetPinCredentialAsync(
+            PinPurpose.DeviceUnlock,
+            pinHasher.Hash("111111"),
+            CancellationToken.None);
+        await database.SetPinCredentialAsync(
+            PinPurpose.Uninstall,
+            pinHasher.Hash("222222"),
+            CancellationToken.None);
+
+        var incompleteStatus = await coordinator.GetStatusAsync(CancellationToken.None);
+
+        Assert.False(incompleteStatus.IsInitialized);
+        Assert.Equal("", incompleteStatus.UserEmail);
+
+        await coordinator.InitializePinsAsync("user@corp.com", "123456", "654321", CancellationToken.None);
+
+        var completedStatus = await coordinator.GetStatusAsync(CancellationToken.None);
+
+        Assert.True(completedStatus.IsInitialized);
+        Assert.Equal("user@corp.com", completedStatus.UserEmail);
+        Assert.False(await coordinator.ValidatePinAsync(PinPurpose.DeviceUnlock, "111111", CancellationToken.None));
+        Assert.True(await coordinator.ValidatePinAsync(PinPurpose.DeviceUnlock, "123456", CancellationToken.None));
+    }
+
     #endregion
 
     #region Helper Mock Classes

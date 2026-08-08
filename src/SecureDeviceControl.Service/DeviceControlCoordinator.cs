@@ -105,7 +105,7 @@ public sealed class DeviceControlCoordinator
     public async Task<ServiceStatusDto> GetStatusAsync(CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
-        var isInitialized = await database.HasPinCredentialsAsync(cancellationToken);
+        var isInitialized = await IsRegistrationCompleteAsync(cancellationToken);
         var isUsbLocked = await usbStoragePolicy.IsUsbStorageLockedAsync(cancellationToken);
         var isMobileLocked = await mobilePortPolicy.IsMobilePortLockedAsync(cancellationToken);
 
@@ -132,7 +132,7 @@ public sealed class DeviceControlCoordinator
         string uninstallPin,
         CancellationToken cancellationToken)
     {
-        if (await database.HasPinCredentialsAsync(cancellationToken))
+        if (await IsRegistrationCompleteAsync(cancellationToken))
         {
             throw new IpcRequestException(IpcErrorCode.AlreadyInitialized, "PINs have already been initialized.");
         }
@@ -154,9 +154,6 @@ public sealed class DeviceControlCoordinator
 
         var machineName = Environment.MachineName;
 
-        await database.SetPolicySettingAsync("user_email", userEmail.Trim().ToLowerInvariant(), cancellationToken);
-        await database.SetPolicySettingAsync("cloud_registration_pending", "true", cancellationToken);
-
         await database.SetPinCredentialAsync(
             PinPurpose.DeviceUnlock,
             pinHasher.Hash(deviceUnlockPin),
@@ -165,6 +162,8 @@ public sealed class DeviceControlCoordinator
             PinPurpose.Uninstall,
             pinHasher.Hash(uninstallPin),
             cancellationToken);
+        await database.SetPolicySettingAsync("user_email", userEmail.Trim().ToLowerInvariant(), cancellationToken);
+        await database.SetPolicySettingAsync("cloud_registration_pending", "true", cancellationToken);
         await database.AppendActivityLogAsync(
             ActivityLogEventType.PinsInitialized,
             $"Device protection initialized for Email '{userEmail}' on PC '{machineName}'.",
@@ -308,6 +307,14 @@ public sealed class DeviceControlCoordinator
         await gate.WaitAsync(cancellationToken);
         try
         {
+            if (!await IsRegistrationCompleteAsync(cancellationToken))
+            {
+                unlockExpiresAt = null;
+                await usbStoragePolicy.SetUsbStorageLockedAsync(locked: false, cancellationToken);
+                await mobilePortPolicy.SetMobilePortLockedAsync(locked: false, cancellationToken);
+                return;
+            }
+
             var now = timeProvider.GetUtcNow();
             if (IsUnlockActive(now))
             {
@@ -393,6 +400,17 @@ public sealed class DeviceControlCoordinator
     private bool IsUnlockActive(DateTimeOffset now)
     {
         return new UnlockTimer(unlockExpiresAt).IsActiveAt(now);
+    }
+
+    private async Task<bool> IsRegistrationCompleteAsync(CancellationToken cancellationToken)
+    {
+        if (!await database.HasPinCredentialsAsync(cancellationToken))
+        {
+            return false;
+        }
+
+        var userEmail = await database.GetPolicySettingAsync("user_email", "", cancellationToken);
+        return !string.IsNullOrWhiteSpace(userEmail) && userEmail.Contains('@') && userEmail.Contains('.');
     }
 
     private sealed record UninstallAuthorizationFile(
