@@ -38,6 +38,16 @@ public sealed class SupabaseSyncWorker : BackgroundService
     {
         logger.LogInformation("Cloud sync worker started.");
 
+        // Perform immediate sync on startup
+        try
+        {
+            await SyncLogsAsync(stoppingToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Initial cloud sync attempt failed. Will retry in periodic cycle.");
+        }
+
         using var timer = new PeriodicTimer(SyncInterval);
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -47,7 +57,7 @@ public sealed class SupabaseSyncWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to sync activity logs to cloud database. Retrying in next interval.");
+                logger.LogWarning(ex, "Failed to sync activity logs/policies to cloud database. Retrying in next interval.");
             }
         }
     }
@@ -56,24 +66,19 @@ public sealed class SupabaseSyncWorker : BackgroundService
     {
         await cloudRepository.EnsureSchemaAsync(cancellationToken);
 
-        // 0. Retry pending cloud device registration if previously offline during setup
+        // 0. Ensure device is registered in cloud DB and heartbeat is refreshed
         try
         {
-            var isPendingReg = await localDatabase.GetPolicySettingAsync("cloud_registration_pending", "false", cancellationToken);
-            if (string.Equals(isPendingReg, "true", StringComparison.OrdinalIgnoreCase))
+            var userEmail = await localDatabase.GetPolicySettingAsync("user_email", "", cancellationToken);
+            if (!string.IsNullOrWhiteSpace(userEmail) && userEmail.Contains('@') && userEmail.Contains('.'))
             {
-                var userEmail = await localDatabase.GetPolicySettingAsync("user_email", "", cancellationToken);
-                if (!string.IsNullOrWhiteSpace(userEmail))
-                {
-                    await cloudRepository.RegisterDeviceAsync(userEmail, Environment.MachineName, cancellationToken);
-                    await localDatabase.SetPolicySettingAsync("cloud_registration_pending", "false", cancellationToken);
-                    logger.LogInformation("Successfully synced pending device cloud registration for '{Email}'.", userEmail);
-                }
+                await cloudRepository.RegisterDeviceAsync(userEmail, Environment.MachineName, cancellationToken);
+                await localDatabase.SetPolicySettingAsync("cloud_registration_pending", "false", cancellationToken);
             }
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Pending device cloud registration sync failed. Will retry in next cycle.");
+            logger.LogWarning(ex, "Device cloud registration/heartbeat sync failed. Will retry in next cycle.");
         }
 
         // 1. Upload unsynced local logs

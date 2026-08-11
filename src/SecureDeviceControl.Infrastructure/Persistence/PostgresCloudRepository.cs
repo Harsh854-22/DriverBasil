@@ -32,6 +32,7 @@ public sealed class PostgresCloudRepository : ICloudRepository
         var connStr = GetConnectionString();
         if (string.IsNullOrWhiteSpace(connStr) || connStr.Contains("[YOUR-PASSWORD]"))
         {
+            logger.LogWarning("Supabase/Postgres connection string is not configured or contains placeholder in appsettings.json. Cloud sync is disabled.");
             return;
         }
 
