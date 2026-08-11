@@ -353,7 +353,9 @@ public sealed class PostgresCloudRepository : ICloudRepository
             SELECT id, version, download_url, sha256_hash, mandatory, target_machine, released_at
             FROM software_updates
             WHERE target_machine = 'ALL' OR LOWER(target_machine) = LOWER(@machine_name)
-            ORDER BY id DESC
+            ORDER BY 
+                CASE WHEN LOWER(target_machine) = LOWER(@machine_name) THEN 0 ELSE 1 END ASC,
+                id DESC
             LIMIT 1;
             """;
         cmd.Parameters.AddWithValue("@machine_name", machineName);
