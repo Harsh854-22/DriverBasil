@@ -8,5 +8,6 @@ public enum IpcOperation
     StartUnlockTimer,
     RequestUninstallAuthorization,
     ListActivityLogs,
-    SetDeviceClassLock
+    SetDeviceClassLock,
+    UploadSnapshot
 }

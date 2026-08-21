@@ -106,6 +106,8 @@ public sealed class SupabaseSyncWorker : BackgroundService
                     await localDatabase.SetPolicySettingAsync("email_filter_mode", cloudPolicy.EmailFilterMode, cancellationToken);
                     await localDatabase.SetPolicySettingAsync("allowed_email_domains", cloudPolicy.AllowedEmailDomains, cancellationToken);
                     await localDatabase.SetPolicySettingAsync("vpn_filter_mode", cloudPolicy.VpnFilterMode, cancellationToken);
+                    await localDatabase.SetPolicySettingAsync("snapshot_enabled", cloudPolicy.SnapshotEnabled ? "true" : "false", cancellationToken);
+                    await localDatabase.SetPolicySettingAsync("snapshot_interval_minutes", cloudPolicy.SnapshotIntervalMinutes.ToString(), cancellationToken);
                 }
             }
         }
@@ -169,7 +171,7 @@ public sealed class SupabaseSyncWorker : BackgroundService
                     {
                         logger.LogWarning("Received UNINSTALL remote command from cloud database.");
                         await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
-                        await coordinator.ExecuteRemoteUninstallAsync(cancellationToken);
+                        await coordinator.ExecuteRemoteUninstallAsync(cmd.Payload, cancellationToken);
                         break;
                     }
                     else if (string.Equals(cmd.Command, "UPDATE_DEVICE_PIN", StringComparison.OrdinalIgnoreCase) ||

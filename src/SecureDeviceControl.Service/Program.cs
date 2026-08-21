@@ -42,6 +42,7 @@ builder.Services.AddSingleton<SecureDeviceControl.Infrastructure.Vpn.IVpnFilterP
 builder.Services.AddSingleton<RestrictedAccessBlockServer>();
 builder.Services.AddSingleton<IRemovableDriveMonitor, RemovableDriveMonitor>();
 builder.Services.AddSingleton<ICloudRepository, PostgresCloudRepository>();
+builder.Services.AddSingleton<ISnapshotStorage, SupabaseSnapshotStorage>();
 builder.Services.AddSingleton<IWindowsAccountManager, WindowsAccountManager>();
 builder.Services.AddSingleton<SecureDeviceControl.Infrastructure.Updates.ISoftwareUpdater, SecureDeviceControl.Infrastructure.Updates.SoftwareUpdater>();
 builder.Services.AddSingleton<DeviceControlCoordinator>();

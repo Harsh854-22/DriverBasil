@@ -314,6 +314,20 @@ public sealed class SecurityHardeningTests : IDisposable
     }
 
     [Fact]
+    public async Task Ipc_Handler_Should_Require_Screenshot_Monitoring_Acknowledgement_For_Registration()
+    {
+        var request = IpcRequest.Create(
+            IpcOperation.InitializePins,
+            new InitializePinsRequest("user@company.com", "123456", "654321", SnapshotMonitoringAcknowledged: false));
+
+        var response = await ipcHandler.HandleAsync(request, CancellationToken.None);
+
+        Assert.False(response.Success);
+        Assert.Equal(IpcErrorCode.BadRequest, response.ErrorCode);
+        Assert.Contains("acknowledge screenshot monitoring", response.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Ipc_Handler_Should_Require_Valid_Session_For_Protected_Operations()
     {
         // StartUnlockTimer requires DeviceUnlock session

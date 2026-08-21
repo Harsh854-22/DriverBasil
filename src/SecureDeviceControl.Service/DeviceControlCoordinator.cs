@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using SecureDeviceControl.Domain.Activity;
 using SecureDeviceControl.Domain.Policy;
@@ -35,6 +36,7 @@ public sealed class DeviceControlCoordinator
     private readonly TimeProvider timeProvider;
     private readonly IConfiguration configuration;
     private readonly ILogger<DeviceControlCoordinator> logger;
+    private readonly ISnapshotStorage? snapshotStorage;
     private readonly SemaphoreSlim gate = new(1, 1);
 
     private DateTimeOffset? unlockExpiresAt;
@@ -53,7 +55,8 @@ public sealed class DeviceControlCoordinator
         ProgramDataPaths paths,
         TimeProvider timeProvider,
         IConfiguration configuration,
-        ILogger<DeviceControlCoordinator> logger)
+        ILogger<DeviceControlCoordinator> logger,
+        ISnapshotStorage? snapshotStorage = null)
     {
         this.database = database;
         this.pinHasher = pinHasher;
@@ -69,6 +72,7 @@ public sealed class DeviceControlCoordinator
         this.timeProvider = timeProvider;
         this.configuration = configuration;
         this.logger = logger;
+        this.snapshotStorage = snapshotStorage;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken)
@@ -113,6 +117,12 @@ public sealed class DeviceControlCoordinator
         var machineName = Environment.MachineName;
         var webFilterMode = await database.GetPolicySettingAsync("web_filter_mode", "OFF", cancellationToken);
         var emailFilterMode = await database.GetPolicySettingAsync("email_filter_mode", "OFF", cancellationToken);
+        var snapshotEnabled = await database.GetPolicySettingAsync("snapshot_enabled", "true", cancellationToken);
+        var snapshotInterval = await database.GetPolicySettingAsync("snapshot_interval_minutes", "5", cancellationToken);
+        var snapshotAcknowledged = await database.GetPolicySettingAsync("snapshot_monitoring_acknowledged", "false", cancellationToken);
+        var snapshotIntervalMinutes = int.TryParse(snapshotInterval, out var configuredInterval)
+            ? Math.Clamp(configuredInterval, 1, 120)
+            : 5;
 
         return new ServiceStatusDto(
             isInitialized,
@@ -123,14 +133,19 @@ public sealed class DeviceControlCoordinator
             userEmail,
             machineName,
             webFilterMode,
-            emailFilterMode);
+            emailFilterMode,
+            string.Equals(snapshotEnabled, "true", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(snapshotAcknowledged, "true", StringComparison.OrdinalIgnoreCase),
+            snapshotIntervalMinutes,
+            string.Equals(snapshotAcknowledged, "true", StringComparison.OrdinalIgnoreCase));
     }
 
     public async Task InitializePinsAsync(
         string userEmail,
         string deviceUnlockPin,
         string uninstallPin,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool snapshotMonitoringAcknowledged = false)
     {
         if (await IsRegistrationCompleteAsync(cancellationToken))
         {
@@ -164,6 +179,9 @@ public sealed class DeviceControlCoordinator
             cancellationToken);
         await database.SetPolicySettingAsync("user_email", userEmail.Trim().ToLowerInvariant(), cancellationToken);
         await database.SetPolicySettingAsync("cloud_registration_pending", "true", cancellationToken);
+        await database.SetPolicySettingAsync("snapshot_monitoring_acknowledged", snapshotMonitoringAcknowledged ? "true" : "false", cancellationToken);
+        await database.SetPolicySettingAsync("snapshot_enabled", "true", cancellationToken);
+        await database.SetPolicySettingAsync("snapshot_interval_minutes", "5", cancellationToken);
         await database.AppendActivityLogAsync(
             ActivityLogEventType.PinsInitialized,
             $"Device protection initialized for Email '{userEmail}' on PC '{machineName}'.",
@@ -185,6 +203,70 @@ public sealed class DeviceControlCoordinator
                 logger.LogWarning(ex, "Background cloud registration attempt failed. SupabaseSyncWorker will retry automatically.");
             }
         }, CancellationToken.None);
+    }
+
+    public async Task UploadSnapshotAsync(
+        UploadSnapshotRequest snapshot,
+        CancellationToken cancellationToken)
+    {
+        const int maximumSnapshotBytes = 8 * 1024 * 1024;
+
+        if (!await IsRegistrationCompleteAsync(cancellationToken))
+        {
+            throw new IpcRequestException(IpcErrorCode.NotInitialized, "The PC must be registered before snapshots can be uploaded.");
+        }
+
+        if (snapshot.ImageBytes.Length is < 4 or > maximumSnapshotBytes ||
+            snapshot.ImageBytes[0] != 0xFF || snapshot.ImageBytes[1] != 0xD8 ||
+            snapshot.ImageBytes[^2] != 0xFF || snapshot.ImageBytes[^1] != 0xD9)
+        {
+            throw new IpcRequestException(IpcErrorCode.BadRequest, "Snapshot data must be a JPEG image no larger than 8 MB.");
+        }
+
+        var acknowledged = await database.GetPolicySettingAsync("snapshot_monitoring_acknowledged", "false", cancellationToken);
+        var enabled = await database.GetPolicySettingAsync("snapshot_enabled", "true", cancellationToken);
+        if (!string.Equals(acknowledged, "true", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new IpcRequestException(IpcErrorCode.Unauthorized, "Screenshot monitoring is not enabled for this PC.");
+        }
+
+        var intervalValue = await database.GetPolicySettingAsync("snapshot_interval_minutes", "5", cancellationToken);
+        var intervalMinutes = int.TryParse(intervalValue, out var configuredInterval)
+            ? Math.Clamp(configuredInterval, 1, 120)
+            : 5;
+        var now = timeProvider.GetUtcNow();
+        var lastUploadedValue = await database.GetPolicySettingAsync("last_snapshot_uploaded_at", "", cancellationToken);
+        if (DateTimeOffset.TryParse(lastUploadedValue, out var lastUploadedAt) && now - lastUploadedAt < TimeSpan.FromMinutes(intervalMinutes))
+        {
+            throw new IpcRequestException(IpcErrorCode.RateLimited, "The next snapshot is not due yet.");
+        }
+
+        var email = await database.GetPolicySettingAsync("user_email", "", cancellationToken);
+        var deviceHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{Environment.MachineName}|{email}")))[..16].ToLowerInvariant();
+        var objectKey = $"{deviceHash}/{now:yyyy/MM/dd}/{now:yyyyMMdd-HHmmss-fff}.jpg";
+
+        try
+        {
+            if (snapshotStorage is null)
+            {
+                throw new InvalidOperationException("Snapshot storage is unavailable.");
+            }
+
+            await snapshotStorage.UploadAsync(objectKey, snapshot.ImageBytes, cancellationToken);
+            await database.SetPolicySettingAsync("last_snapshot_uploaded_at", now.ToString("O"), cancellationToken);
+            await database.AppendActivityLogAsync(ActivityLogEventType.SnapshotUploaded, "A screen snapshot was uploaded to company storage.", cancellationToken);
+        }
+        catch (IpcRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Snapshot upload failed.");
+            await database.AppendActivityLogAsync(ActivityLogEventType.SnapshotUploadFailed, "A screen snapshot could not be uploaded.", cancellationToken);
+            throw new IpcRequestException(IpcErrorCode.InternalError, "The snapshot could not be uploaded.");
+        }
     }
 
     public async Task<bool> ValidatePinAsync(
@@ -369,10 +451,11 @@ public sealed class DeviceControlCoordinator
         }
     }
 
-    public async Task ExecuteRemoteUninstallAsync(CancellationToken cancellationToken)
+    public async Task ExecuteRemoteUninstallAsync(string payload, CancellationToken cancellationToken)
     {
         logger.LogWarning("Executing remote software uninstallation command...");
 
+        var options = ParseRemoteUninstallOptions(payload);
         await usbStoragePolicy.SetUsbStorageLockedAsync(locked: false, cancellationToken);
         await mobilePortPolicy.SetMobilePortLockedAsync(locked: false, cancellationToken);
         await webFilterPolicy.ApplyWebFilterPolicyAsync(
@@ -386,14 +469,86 @@ public sealed class DeviceControlCoordinator
 
         if (OperatingSystem.IsWindows())
         {
+            var encodedScript = Convert.ToBase64String(Encoding.Unicode.GetBytes(BuildRemoteUninstallScript(options.RemoveData)));
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = $"/c timeout /t 2 && sc stop \"{ServiceIdentity.ServiceName}\" && sc delete \"{ServiceIdentity.ServiceName}\"",
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand {encodedScript}",
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
             System.Diagnostics.Process.Start(startInfo);
+        }
+    }
+
+    public Task ExecuteRemoteUninstallAsync(CancellationToken cancellationToken)
+    {
+        return ExecuteRemoteUninstallAsync("", cancellationToken);
+    }
+
+    private string BuildRemoteUninstallScript(bool removeData)
+    {
+        var installedDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var canRemoveInstalledDirectory =
+            OperatingSystem.IsWindows() &&
+            !string.IsNullOrWhiteSpace(programFiles) &&
+            installedDirectory.StartsWith(programFiles, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(Path.GetFileName(installedDirectory), "SecureDeviceControl", StringComparison.OrdinalIgnoreCase);
+
+        var installDirectoryLiteral = canRemoveInstalledDirectory
+            ? ToPowerShellSingleQuotedLiteral(installedDirectory)
+            : "''";
+        var programDataLiteral = ToPowerShellSingleQuotedLiteral(paths.BaseDirectory);
+        var serviceNameLiteral = ToPowerShellSingleQuotedLiteral(ServiceIdentity.ServiceName);
+        var removeDataLiteral = removeData ? "$true" : "$false";
+
+        return $$"""
+            $ErrorActionPreference = 'SilentlyContinue'
+            $serviceName = {{serviceNameLiteral}}
+            $installDirectory = {{installDirectoryLiteral}}
+            $programDataDirectory = {{programDataLiteral}}
+            $removeData = {{removeDataLiteral}}
+
+            Start-Sleep -Seconds 3
+            Stop-Service -Name $serviceName -Force
+            sc.exe delete $serviceName | Out-Null
+
+            Get-ChildItem -Path Registry::HKEY_USERS | ForEach-Object {
+                $runPath = "Registry::$($_.Name)\Software\Microsoft\Windows\CurrentVersion\Run"
+                Remove-ItemProperty -Path $runPath -Name 'SecureDeviceControlSnapshots'
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($installDirectory) -and (Test-Path -LiteralPath $installDirectory)) {
+                Remove-Item -LiteralPath $installDirectory -Recurse -Force
+            }
+
+            if ($removeData -and (Test-Path -LiteralPath $programDataDirectory)) {
+                Remove-Item -LiteralPath $programDataDirectory -Recurse -Force
+            }
+            """;
+    }
+
+    private static string ToPowerShellSingleQuotedLiteral(string value)
+    {
+        return $"'{value.Replace("'", "''")}'";
+    }
+
+    private static RemoteUninstallOptions ParseRemoteUninstallOptions(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return new RemoteUninstallOptions(false);
+        }
+
+        try
+        {
+            var options = JsonSerializer.Deserialize<RemoteUninstallOptions>(payload, IpcJson.Options);
+            return options ?? new RemoteUninstallOptions(false);
+        }
+        catch
+        {
+            return new RemoteUninstallOptions(false);
         }
     }
 
@@ -416,4 +571,6 @@ public sealed class DeviceControlCoordinator
     private sealed record UninstallAuthorizationFile(
         string TokenHash,
         DateTimeOffset ExpiresAt);
+
+    private sealed record RemoteUninstallOptions(bool RemoveData = false);
 }

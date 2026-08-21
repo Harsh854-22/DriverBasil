@@ -9,17 +9,30 @@ namespace SecureDeviceControl.Desktop;
 public partial class MainWindow : Window
 {
     private readonly IpcClient ipcClient = new();
+    private readonly SnapshotCaptureService snapshotCaptureService;
+    private readonly bool startMinimized;
     private string? deviceUnlockSessionToken;
     private string? uninstallSessionToken;
 
-    public MainWindow()
+    public MainWindow(bool startMinimized = false)
     {
         InitializeComponent();
+        this.startMinimized = startMinimized;
+        snapshotCaptureService = new SnapshotCaptureService(ipcClient);
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         await RefreshStatusAsync();
+        if (startMinimized)
+        {
+            WindowState = WindowState.Minimized;
+        }
+    }
+
+    private async void Window_Closed(object? sender, EventArgs e)
+    {
+        await snapshotCaptureService.DisposeAsync();
     }
 
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
@@ -33,13 +46,18 @@ public partial class MainWindow : Window
         {
             var response = await ipcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.InitializePins,
-                new InitializePinsRequest(UserEmailBox.Text, SetupDevicePinBox.Password, SetupUninstallPinBox.Password)));
+                new InitializePinsRequest(
+                    UserEmailBox.Text,
+                    SetupDevicePinBox.Password,
+                    SetupUninstallPinBox.Password,
+                    SnapshotMonitoringAcknowledgementCheckBox.IsChecked == true)));
 
             EnsureSuccess(response);
+            SnapshotStartupRegistrar.EnableForCurrentUser();
             UserEmailBox.Clear();
             SetupDevicePinBox.Clear();
             SetupUninstallPinBox.Clear();
-            MessageText.Text = "Protection initialized and registered. Hardware access is locked until you enter the device PIN.";
+            MessageText.Text = "Protection is initialized. Hardware access is locked until you enter the device PIN.";
             await RefreshStatusAsync();
         });
     }
@@ -198,6 +216,10 @@ public partial class MainWindow : Window
             UnlockTimerText.Text = status.IsUnlockTimerActive && status.UnlockExpiresAt is not null
                 ? $"Active until {status.UnlockExpiresAt.Value.LocalDateTime:g}"
                 : "Inactive";
+            snapshotCaptureService.UpdateSettings(
+                status.SnapshotEnabled,
+                status.SnapshotIntervalMinutes,
+                status.SnapshotMonitoringAcknowledged);
 
             SetupPanel.Visibility = status.IsInitialized ? Visibility.Collapsed : Visibility.Visible;
             MainPanel.Visibility = status.IsInitialized ? Visibility.Visible : Visibility.Collapsed;

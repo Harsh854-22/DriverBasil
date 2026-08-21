@@ -37,6 +37,7 @@ public sealed class IpcRequestHandler
                 IpcOperation.RequestUninstallAuthorization => await RequestUninstallAuthorizationAsync(request, cancellationToken),
                 IpcOperation.ListActivityLogs => await ListActivityLogsAsync(request, cancellationToken),
                 IpcOperation.SetDeviceClassLock => await SetDeviceClassLockAsync(request, cancellationToken),
+                IpcOperation.UploadSnapshot => await UploadSnapshotAsync(request, cancellationToken),
                 _ => IpcResponse.Fail(request.CorrelationId, IpcErrorCode.BadRequest, "Unsupported IPC operation.")
             };
         }
@@ -68,7 +69,19 @@ public sealed class IpcRequestHandler
         CancellationToken cancellationToken)
     {
         var payload = ReadPayload<InitializePinsRequest>(request);
-        await coordinator.InitializePinsAsync(payload.UserEmail, payload.DeviceUnlockPin, payload.UninstallPin, cancellationToken);
+        if (!payload.SnapshotMonitoringAcknowledged)
+        {
+            throw new IpcRequestException(
+                IpcErrorCode.BadRequest,
+                "You must acknowledge screenshot monitoring before registering this PC.");
+        }
+
+        await coordinator.InitializePinsAsync(
+            payload.UserEmail,
+            payload.DeviceUnlockPin,
+            payload.UninstallPin,
+            cancellationToken,
+            snapshotMonitoringAcknowledged: true);
         return IpcResponse.Ok(request.CorrelationId);
     }
 
@@ -144,6 +157,15 @@ public sealed class IpcRequestHandler
         }
 
         await coordinator.SetDeviceClassLockAsync(payload.DeviceClass, payload.Locked, cancellationToken);
+        return IpcResponse.Ok(request.CorrelationId);
+    }
+
+    private async Task<IpcResponse> UploadSnapshotAsync(
+        IpcRequest request,
+        CancellationToken cancellationToken)
+    {
+        var payload = ReadPayload<UploadSnapshotRequest>(request);
+        await coordinator.UploadSnapshotAsync(payload, cancellationToken);
         return IpcResponse.Ok(request.CorrelationId);
     }
 

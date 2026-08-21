@@ -11,5 +11,8 @@ public enum ActivityLogEventType
     UninstallAuthorizationIssued,
     IpcRejected,
     PolicyEvaluated,
-    FileTransferDetected
+    FileTransferDetected,
+    SnapshotCaptured,
+    SnapshotUploaded,
+    SnapshotUploadFailed
 }

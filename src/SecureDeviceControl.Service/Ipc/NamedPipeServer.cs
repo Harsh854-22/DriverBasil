@@ -9,7 +9,7 @@ namespace SecureDeviceControl.Service.Ipc;
 
 public sealed class NamedPipeServer
 {
-    private const int MaxFrameBytes = 64 * 1024;
+    private const int MaxRequestFrameBytes = 12 * 1024 * 1024;
 
     private readonly IpcRequestHandler requestHandler;
     private readonly ILogger<NamedPipeServer> logger;
@@ -93,7 +93,7 @@ public sealed class NamedPipeServer
             var count = newlineIndex >= 0 ? newlineIndex : read;
             memory.Write(buffer, 0, count);
 
-            if (memory.Length > MaxFrameBytes)
+            if (memory.Length > MaxRequestFrameBytes)
             {
                 throw new InvalidOperationException("IPC frame exceeded the maximum allowed size.");
             }

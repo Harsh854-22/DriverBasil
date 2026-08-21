@@ -65,6 +65,8 @@ public sealed class PostgresCloudRepository : ICloudRepository
                 blocked_websites TEXT NOT NULL DEFAULT '',
                 email_filter_mode TEXT NOT NULL DEFAULT 'OFF',
                 allowed_email_domains TEXT NOT NULL DEFAULT 'company.com',
+                snapshot_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                snapshot_interval_minutes INTEGER NOT NULL DEFAULT 5 CHECK (snapshot_interval_minutes BETWEEN 1 AND 120),
                 updated_at TIMESTAMPTZ NOT NULL
             );
 
@@ -107,7 +109,14 @@ public sealed class PostgresCloudRepository : ICloudRepository
         try
         {
             await using var alterCmd3 = connection.CreateCommand();
-            alterCmd3.CommandText = "ALTER TABLE device_policies ADD COLUMN IF NOT EXISTS vpn_filter_mode TEXT NOT NULL DEFAULT 'OFF';";
+            alterCmd3.CommandText = """
+                ALTER TABLE device_policies ADD COLUMN IF NOT EXISTS vpn_filter_mode TEXT NOT NULL DEFAULT 'OFF';
+                ALTER TABLE device_policies ADD COLUMN IF NOT EXISTS snapshot_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+                ALTER TABLE device_policies ADD COLUMN IF NOT EXISTS snapshot_interval_minutes INTEGER NOT NULL DEFAULT 5;
+                ALTER TABLE device_policies DROP CONSTRAINT IF EXISTS device_policies_snapshot_interval_minutes_check;
+                ALTER TABLE device_policies ADD CONSTRAINT device_policies_snapshot_interval_minutes_check
+                    CHECK (snapshot_interval_minutes BETWEEN 1 AND 120);
+                """;
             await alterCmd3.ExecuteNonQueryAsync(cancellationToken);
         }
         catch
@@ -233,7 +242,8 @@ public sealed class PostgresCloudRepository : ICloudRepository
 
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = """
-            SELECT email_id, machine_name, web_filter_mode, allowed_websites, blocked_websites, email_filter_mode, allowed_email_domains, COALESCE(vpn_filter_mode, 'OFF')
+            SELECT email_id, machine_name, web_filter_mode, allowed_websites, blocked_websites, email_filter_mode, allowed_email_domains,
+                   COALESCE(vpn_filter_mode, 'OFF'), COALESCE(snapshot_enabled, TRUE), COALESCE(snapshot_interval_minutes, 5)
             FROM device_policies
             WHERE email_id = @email_id
             LIMIT 1;
@@ -251,7 +261,9 @@ public sealed class PostgresCloudRepository : ICloudRepository
                 reader.GetString(4),
                 reader.GetString(5),
                 reader.GetString(6),
-                reader.GetString(7));
+                reader.GetString(7),
+                reader.GetBoolean(8),
+                Math.Clamp(reader.GetInt32(9), 1, 120));
         }
 
         return null;
@@ -322,7 +334,11 @@ public sealed class PostgresCloudRepository : ICloudRepository
             UPDATE windows_password_commands
             SET status = @status,
                 error_message = @error_message,
-                executed_at = @now
+                executed_at = @now,
+                new_password = CASE
+                    WHEN @status IN ('COMPLETED', 'FAILED') THEN ''
+                    ELSE new_password
+                END
             WHERE id = @id;
             """;
         cmd.Parameters.AddWithValue("@id", commandId);

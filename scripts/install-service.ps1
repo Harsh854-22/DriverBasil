@@ -1,5 +1,6 @@
 param(
     [string]$ServiceExePath = "",
+    [string]$DesktopExePath = "",
     [switch]$MigrateLegacyService,
     [switch]$ResetLocalData
 )
@@ -24,6 +25,13 @@ function Set-RestrictedDirectoryAcl([string]$Path) {
     & icacls $Path /grant "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to set protected permissions on '$Path'."
+    }
+}
+
+function Set-ApplicationReadAcl([string]$Path) {
+    & icacls $Path /grant "Authenticated Users:(OI)(CI)RX" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to grant standard users read and execute access to '$Path'."
     }
 }
 
@@ -76,12 +84,27 @@ if (-not (Test-Path -LiteralPath $ServiceExePath -PathType Leaf)) {
     throw "Service executable was not found: $ServiceExePath"
 }
 
+if ([string]::IsNullOrWhiteSpace($DesktopExePath)) {
+    $flatDesktopPath = Join-Path $PSScriptRoot "SecureDeviceControl.Desktop.exe"
+    if (Test-Path -LiteralPath $flatDesktopPath) {
+        $DesktopExePath = $flatDesktopPath
+    }
+    else {
+        $DesktopExePath = Join-Path $repoRoot "artifacts\win-x64\desktop\SecureDeviceControl.Desktop.exe"
+    }
+}
+
+if (-not (Test-Path -LiteralPath $DesktopExePath -PathType Leaf)) {
+    throw "Desktop executable was not found: $DesktopExePath"
+}
+
 if ((Get-Service -Name $legacyServiceName -ErrorAction SilentlyContinue) -and -not $MigrateLegacyService) {
     throw "A legacy service named '$legacyServiceName' exists. Re-run with -MigrateLegacyService to remove it before installing the corrected service."
 }
 
 Set-RestrictedDirectoryAcl $programDataPath
 Set-RestrictedDirectoryAcl $installDirectory
+Set-ApplicationReadAcl $installDirectory
 
 if ($MigrateLegacyService) {
     Remove-ServiceRegistration $legacyServiceName
@@ -99,7 +122,9 @@ if ($ResetLocalData) {
 
 $sourceDirectory = Split-Path -Parent (Resolve-Path -LiteralPath $ServiceExePath)
 $installedServiceExe = Join-Path $installDirectory "SecureDeviceControl.Service.exe"
+$installedDesktopExe = Join-Path $installDirectory "SecureDeviceControl.Desktop.exe"
 Copy-Item -LiteralPath $ServiceExePath -Destination $installedServiceExe -Force
+Copy-Item -LiteralPath $DesktopExePath -Destination $installedDesktopExe -Force
 Get-ChildItem -LiteralPath $sourceDirectory -Filter "appsettings*.json" -File -ErrorAction SilentlyContinue |
     Copy-Item -Destination $installDirectory -Force
 
@@ -136,4 +161,4 @@ if ($installedService.Status -ne [System.ServiceProcess.ServiceControllerStatus]
 }
 
 Write-Host "$displayName is installed and running as LocalSystem."
-Write-Host "Open SecureDeviceControl.Desktop.exe to create the two PINs."
+Write-Host "Open $installedDesktopExe to create the two PINs and acknowledge snapshot monitoring."

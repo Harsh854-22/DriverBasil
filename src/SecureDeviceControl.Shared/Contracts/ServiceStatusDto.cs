@@ -9,4 +9,7 @@ public sealed record ServiceStatusDto(
     string? UserEmail = null,
     string? MachineName = null,
     string? WebFilterMode = "OFF",
-    string? EmailFilterMode = "OFF");
+    string? EmailFilterMode = "OFF",
+    bool SnapshotEnabled = false,
+    int SnapshotIntervalMinutes = 5,
+    bool SnapshotMonitoringAcknowledged = false);

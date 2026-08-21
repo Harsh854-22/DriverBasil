@@ -1,0 +1,22 @@
+<Window x:Class="SecureDeviceControl.Dashboard.ViewerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Snapshot viewer"
+        Width="1100" Height="760"
+        WindowStartupLocation="CenterOwner"
+        Background="#0f172a">
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Background="#1e293b" Padding="14,10">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                    <Button x:Name="PrevButton" Content="Previous" Style="{StaticResource DarkButton}" Background="#334155" Click="OnPrevClicked"/>
+                    <Button x:Name="NextButton" Content="Next" Style="{StaticResource DarkButton}" Background="#334155" Margin="8,0,0,0" Click="OnNextClicked"/>
+                </StackPanel>
+                <TextBlock x:Name="MetaText" Foreground="#94a3b8" VerticalAlignment="Center" HorizontalAlignment="Right" TextAlignment="Right"/>
+            </DockPanel>
+        </Border>
+        <Border Padding="14">
+            <Image x:Name="SnapshotImage" Stretch="Uniform"/>
+        </Border>
+    </DockPanel>
+</Window>

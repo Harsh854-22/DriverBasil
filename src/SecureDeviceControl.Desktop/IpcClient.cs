@@ -7,7 +7,8 @@ namespace SecureDeviceControl.Desktop;
 
 public sealed class IpcClient
 {
-    private const int MaxFrameBytes = 64 * 1024;
+    private const int MaxResponseFrameBytes = 64 * 1024;
+    private const int MaxRequestFrameBytes = 12 * 1024 * 1024;
 
     public async Task<IpcResponse> SendAsync(IpcRequest request, CancellationToken cancellationToken = default)
     {
@@ -59,6 +60,11 @@ public sealed class IpcClient
         CancellationToken token)
     {
         var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, IpcJson.Options);
+        if (requestBytes.Length > MaxRequestFrameBytes)
+        {
+            throw new InvalidOperationException("The snapshot is too large to send to the protection service.");
+        }
+
         await pipe.WriteAsync(requestBytes, token);
         await pipe.WriteAsync("\n"u8.ToArray(), token);
         await pipe.FlushAsync(token);
@@ -85,7 +91,7 @@ public sealed class IpcClient
             var count = newlineIndex >= 0 ? newlineIndex : read;
             memory.Write(buffer, 0, count);
 
-            if (memory.Length > MaxFrameBytes)
+            if (memory.Length > MaxResponseFrameBytes)
             {
                 throw new InvalidOperationException("The service response was too large.");
             }

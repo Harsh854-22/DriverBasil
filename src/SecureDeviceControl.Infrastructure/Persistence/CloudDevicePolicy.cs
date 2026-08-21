@@ -8,4 +8,6 @@ public sealed record CloudDevicePolicy(
     string BlockedWebsites,
     string EmailFilterMode,
     string AllowedEmailDomains,
-    string VpnFilterMode = "OFF");
+    string VpnFilterMode = "OFF",
+    bool SnapshotEnabled = true,
+    int SnapshotIntervalMinutes = 5);
