@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using SecureDeviceControl.Shared.Snapshots;
 
 namespace SecureDeviceControl.Dashboard.Cloud;
 
@@ -9,6 +10,11 @@ public sealed class SupabaseSnapshotClient : IDisposable
 {
     private const string Bucket = "Snapshots";
     private const int PageSize = 1000;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     private readonly HttpClient httpClient;
 
@@ -43,8 +49,8 @@ public sealed class SupabaseSnapshotClient : IDisposable
             response.EnsureSuccessStatusCode();
 
             using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            var rows = await JsonSerializer.DeserializeAsync<List<RegisteredDeviceRow>>(stream, cancellationToken: cancellationToken)
-                       ?? new List<RegisteredDeviceRow>();
+            var rows = await JsonSerializer.DeserializeAsync<List<RegisteredDeviceRow>>(stream, JsonOptions, cancellationToken: cancellationToken)
+                        ?? new List<RegisteredDeviceRow>();
 
             foreach (var row in rows)
             {
@@ -57,7 +63,7 @@ public sealed class SupabaseSnapshotClient : IDisposable
                 devices.Add(new DeviceInfo(
                     email,
                     row.MachineName,
-                    DeviceInfo.ComputeDeviceHash(row.MachineName, email),
+                    SnapshotObjectKey.SanitizeMachineName(row.MachineName),
                     row.UpdatedAt));
             }
 
@@ -96,8 +102,8 @@ public sealed class SupabaseSnapshotClient : IDisposable
             response.EnsureSuccessStatusCode();
 
             using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            var entries = await JsonSerializer.DeserializeAsync<List<BucketListEntry>>(stream, cancellationToken: cancellationToken)
-                          ?? new List<BucketListEntry>();
+            var entries = await JsonSerializer.DeserializeAsync<List<BucketListEntry>>(stream, JsonOptions, cancellationToken: cancellationToken)
+                           ?? new List<BucketListEntry>();
 
             foreach (var entry in entries)
             {

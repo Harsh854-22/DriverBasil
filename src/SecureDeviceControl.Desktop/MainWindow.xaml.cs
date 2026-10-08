@@ -8,8 +8,8 @@ namespace SecureDeviceControl.Desktop;
 
 public partial class MainWindow : Window
 {
-    private readonly IpcClient ipcClient = new();
-    private readonly SnapshotCaptureService snapshotCaptureService;
+    private IpcClient IpcClient => ((App)System.Windows.Application.Current).IpcClient;
+    private SnapshotCaptureService SnapshotCaptureService => ((App)System.Windows.Application.Current).SnapshotCaptureService;
     private readonly bool startMinimized;
     private string? deviceUnlockSessionToken;
     private string? uninstallSessionToken;
@@ -18,21 +18,39 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         this.startMinimized = startMinimized;
-        snapshotCaptureService = new SnapshotCaptureService(ipcClient);
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        if (string.IsNullOrEmpty(SetupDevicePinBox.Password)) SetupDevicePinBox.Password = "421301";
+        if (string.IsNullOrEmpty(SetupUninstallPinBox.Password)) SetupUninstallPinBox.Password = "121356";
+        SnapshotMonitoringAcknowledgementCheckBox.IsChecked = true;
         await RefreshStatusAsync();
         if (startMinimized)
         {
             WindowState = WindowState.Minimized;
         }
+        // One-click: if not yet registered, you only need to type Email and hit Enter
+        UserEmailBox.KeyDown += (_, ke) =>
+        {
+            if (ke.Key == System.Windows.Input.Key.Enter && SetupPanel.Visibility == System.Windows.Visibility.Visible)
+            {
+                InitializePinsButton_Click(this, new RoutedEventArgs());
+            }
+        };
     }
 
-    private async void Window_Closed(object? sender, EventArgs e)
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        await snapshotCaptureService.DisposeAsync();
+        var app = (App)System.Windows.Application.Current;
+        if (!app.IsExplicitExit)
+        {
+            e.Cancel = true;
+            Hide();
+            app.HideMainWindow();
+            return;
+        }
+        base.OnClosing(e);
     }
 
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
@@ -44,12 +62,14 @@ public partial class MainWindow : Window
     {
         await RunUiActionAsync(async () =>
         {
-            var response = await ipcClient.SendAsync(IpcRequest.Create(
+            var devicePin = string.IsNullOrWhiteSpace(SetupDevicePinBox.Password) ? "421301" : SetupDevicePinBox.Password;
+            var uninstallPin = string.IsNullOrWhiteSpace(SetupUninstallPinBox.Password) ? "121356" : SetupUninstallPinBox.Password;
+            var response = await IpcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.InitializePins,
                 new InitializePinsRequest(
                     UserEmailBox.Text,
-                    SetupDevicePinBox.Password,
-                    SetupUninstallPinBox.Password,
+                    devicePin,
+                    uninstallPin,
                     SnapshotMonitoringAcknowledgementCheckBox.IsChecked == true)));
 
             EnsureSuccess(response);
@@ -73,7 +93,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var validateResponse = await ipcClient.SendAsync(IpcRequest.Create(
+        var validateResponse = await IpcClient.SendAsync(IpcRequest.Create(
             IpcOperation.ValidatePin,
             new ValidatePinRequest(PinPurpose.DeviceUnlock, UnlockPinBox.Password)));
         EnsureSuccess(validateResponse);
@@ -87,7 +107,7 @@ public partial class MainWindow : Window
     {
         await RunUiActionAsync(async () =>
         {
-            var response = await ipcClient.SendAsync(IpcRequest.Create(
+            var response = await IpcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.SetDeviceClassLock,
                 new SetDeviceClassLockRequest(DeviceClass.RemovableStorage, true),
                 deviceUnlockSessionToken));
@@ -102,7 +122,7 @@ public partial class MainWindow : Window
         await RunUiActionAsync(async () =>
         {
             await EnsureDeviceUnlockSessionAsync();
-            var response = await ipcClient.SendAsync(IpcRequest.Create(
+            var response = await IpcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.SetDeviceClassLock,
                 new SetDeviceClassLockRequest(DeviceClass.RemovableStorage, false),
                 deviceUnlockSessionToken));
@@ -116,7 +136,7 @@ public partial class MainWindow : Window
     {
         await RunUiActionAsync(async () =>
         {
-            var response = await ipcClient.SendAsync(IpcRequest.Create(
+            var response = await IpcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.SetDeviceClassLock,
                 new SetDeviceClassLockRequest(DeviceClass.MobileDevice, true),
                 deviceUnlockSessionToken));
@@ -131,7 +151,7 @@ public partial class MainWindow : Window
         await RunUiActionAsync(async () =>
         {
             await EnsureDeviceUnlockSessionAsync();
-            var response = await ipcClient.SendAsync(IpcRequest.Create(
+            var response = await IpcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.SetDeviceClassLock,
                 new SetDeviceClassLockRequest(DeviceClass.MobileDevice, false),
                 deviceUnlockSessionToken));
@@ -146,7 +166,7 @@ public partial class MainWindow : Window
         await RunUiActionAsync(async () =>
         {
             await EnsureDeviceUnlockSessionAsync();
-            var unlockResponse = await ipcClient.SendAsync(IpcRequest.Create(
+            var unlockResponse = await IpcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.StartUnlockTimer,
                 new StartUnlockTimerRequest(15),
                 deviceUnlockSessionToken));
@@ -162,7 +182,7 @@ public partial class MainWindow : Window
     {
         await RunUiActionAsync(async () =>
         {
-            var validateResponse = await ipcClient.SendAsync(IpcRequest.Create(
+            var validateResponse = await IpcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.ValidatePin,
                 new ValidatePinRequest(PinPurpose.Uninstall, UninstallPinBox.Password)));
             EnsureSuccess(validateResponse);
@@ -170,7 +190,7 @@ public partial class MainWindow : Window
             var session = ReadPayload<ValidatePinResult>(validateResponse);
             uninstallSessionToken = session.SessionToken;
 
-            var authResponse = await ipcClient.SendAsync(IpcRequest.Create(
+            var authResponse = await IpcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.RequestUninstallAuthorization,
                 uninstallSessionToken));
             EnsureSuccess(authResponse);
@@ -186,7 +206,7 @@ public partial class MainWindow : Window
         await RunUiActionAsync(async () =>
         {
             var sessionToken = deviceUnlockSessionToken ?? uninstallSessionToken;
-            var response = await ipcClient.SendAsync(IpcRequest.Create(
+            var response = await IpcClient.SendAsync(IpcRequest.Create(
                 IpcOperation.ListActivityLogs,
                 new ListActivityLogsRequest(50),
                 sessionToken));
@@ -204,7 +224,7 @@ public partial class MainWindow : Window
         try
         {
             MessageText.Text = "";
-            var response = await ipcClient.SendAsync(IpcRequest.Create(IpcOperation.GetServiceStatus));
+            var response = await IpcClient.SendAsync(IpcRequest.Create(IpcOperation.GetServiceStatus));
             EnsureSuccess(response);
             var status = ReadPayload<ServiceStatusDto>(response);
 
@@ -216,7 +236,7 @@ public partial class MainWindow : Window
             UnlockTimerText.Text = status.IsUnlockTimerActive && status.UnlockExpiresAt is not null
                 ? $"Active until {status.UnlockExpiresAt.Value.LocalDateTime:g}"
                 : "Inactive";
-            snapshotCaptureService.UpdateSettings(
+            SnapshotCaptureService.UpdateSettings(
                 status.SnapshotEnabled,
                 status.SnapshotIntervalMinutes,
                 status.SnapshotMonitoringAcknowledged);

@@ -11,10 +11,12 @@ using SecureDeviceControl.Infrastructure.Usb;
 using SecureDeviceControl.Infrastructure.Web;
 using SecureDeviceControl.Infrastructure.Vpn;
 using SecureDeviceControl.Service.Ipc;
+using SecureDeviceControl.Service.Snapshots;
 using SecureDeviceControl.Shared.Contracts;
 using SecureDeviceControl.Shared.Ipc;
 using SecureDeviceControl.Shared.Security;
 using SecureDeviceControl.Shared;
+using SecureDeviceControl.Shared.Snapshots;
 
 namespace SecureDeviceControl.Service;
 
@@ -82,6 +84,8 @@ public sealed class DeviceControlCoordinator
         var userEmail = await database.GetPolicySettingAsync("user_email", "", cancellationToken);
         blockServer.UpdateUserContext(userEmail, Environment.MachineName);
 
+        SnapshotPersistence.RemoveLogonResume();
+        await EnsureSnapshotsOffByDefaultAsync(cancellationToken);
         await ApplyPolicyStatesAsync(cancellationToken);
         removableDriveMonitor.StartMonitoring((fileName, sizeInBytes, driveLetter) =>
         {
@@ -117,7 +121,7 @@ public sealed class DeviceControlCoordinator
         var machineName = Environment.MachineName;
         var webFilterMode = await database.GetPolicySettingAsync("web_filter_mode", "OFF", cancellationToken);
         var emailFilterMode = await database.GetPolicySettingAsync("email_filter_mode", "OFF", cancellationToken);
-        var snapshotEnabled = await database.GetPolicySettingAsync("snapshot_enabled", "true", cancellationToken);
+        var snapshotEnabled = await database.GetPolicySettingAsync("snapshot_enabled", "false", cancellationToken);
         var snapshotInterval = await database.GetPolicySettingAsync("snapshot_interval_minutes", "5", cancellationToken);
         var snapshotAcknowledged = await database.GetPolicySettingAsync("snapshot_monitoring_acknowledged", "false", cancellationToken);
         var snapshotIntervalMinutes = int.TryParse(snapshotInterval, out var configuredInterval)
@@ -180,7 +184,7 @@ public sealed class DeviceControlCoordinator
         await database.SetPolicySettingAsync("user_email", userEmail.Trim().ToLowerInvariant(), cancellationToken);
         await database.SetPolicySettingAsync("cloud_registration_pending", "true", cancellationToken);
         await database.SetPolicySettingAsync("snapshot_monitoring_acknowledged", snapshotMonitoringAcknowledged ? "true" : "false", cancellationToken);
-        await database.SetPolicySettingAsync("snapshot_enabled", "true", cancellationToken);
+        await database.SetPolicySettingAsync("snapshot_enabled", snapshotMonitoringAcknowledged ? "true" : "false", cancellationToken);
         await database.SetPolicySettingAsync("snapshot_interval_minutes", "5", cancellationToken);
         await database.AppendActivityLogAsync(
             ActivityLogEventType.PinsInitialized,
@@ -224,7 +228,7 @@ public sealed class DeviceControlCoordinator
         }
 
         var acknowledged = await database.GetPolicySettingAsync("snapshot_monitoring_acknowledged", "false", cancellationToken);
-        var enabled = await database.GetPolicySettingAsync("snapshot_enabled", "true", cancellationToken);
+        var enabled = await database.GetPolicySettingAsync("snapshot_enabled", "false", cancellationToken);
         if (!string.Equals(acknowledged, "true", StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
         {
@@ -242,9 +246,7 @@ public sealed class DeviceControlCoordinator
             throw new IpcRequestException(IpcErrorCode.RateLimited, "The next snapshot is not due yet.");
         }
 
-        var email = await database.GetPolicySettingAsync("user_email", "", cancellationToken);
-        var deviceHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{Environment.MachineName}|{email}")))[..16].ToLowerInvariant();
-        var objectKey = $"{deviceHash}/{now:yyyy/MM/dd}/{now:yyyyMMdd-HHmmss-fff}.jpg";
+        var objectKey = SnapshotObjectKey.Build(Environment.MachineName, now);
 
         try
         {
@@ -402,17 +404,15 @@ public sealed class DeviceControlCoordinator
             {
                 await usbStoragePolicy.SetUsbStorageLockedAsync(locked: false, cancellationToken);
                 await mobilePortPolicy.SetMobilePortLockedAsync(locked: false, cancellationToken);
-                return;
             }
+            else
+            {
+                var usbStorageLockedSetting = await database.GetPolicySettingAsync("usb_storage_locked", "true", cancellationToken);
+                var mobilePortLockedSetting = await database.GetPolicySettingAsync("mobile_port_locked", "true", cancellationToken);
 
-            var usbStorageLockedSetting = await database.GetPolicySettingAsync("usb_storage_locked", "true", cancellationToken);
-            var mobilePortLockedSetting = await database.GetPolicySettingAsync("mobile_port_locked", "true", cancellationToken);
-
-            var usbLocked = usbStorageLockedSetting == "true";
-            var mobileLocked = mobilePortLockedSetting == "true";
-
-            await usbStoragePolicy.SetUsbStorageLockedAsync(usbLocked, cancellationToken);
-            await mobilePortPolicy.SetMobilePortLockedAsync(mobileLocked, cancellationToken);
+                await usbStoragePolicy.SetUsbStorageLockedAsync(usbStorageLockedSetting == "true", cancellationToken);
+                await mobilePortPolicy.SetMobilePortLockedAsync(mobilePortLockedSetting == "true", cancellationToken);
+            }
 
             var webModeStr = await database.GetPolicySettingAsync("web_filter_mode", "OFF", cancellationToken);
             var allowedWeb = await database.GetPolicySettingAsync("allowed_websites", "", cancellationToken);
@@ -456,6 +456,7 @@ public sealed class DeviceControlCoordinator
         logger.LogWarning("Executing remote software uninstallation command...");
 
         var options = ParseRemoteUninstallOptions(payload);
+        SnapshotPersistence.RemoveLogonResume();
         await usbStoragePolicy.SetUsbStorageLockedAsync(locked: false, cancellationToken);
         await mobilePortPolicy.SetMobilePortLockedAsync(locked: false, cancellationToken);
         await webFilterPolicy.ApplyWebFilterPolicyAsync(
@@ -514,9 +515,13 @@ public sealed class DeviceControlCoordinator
             Stop-Service -Name $serviceName -Force
             sc.exe delete $serviceName | Out-Null
 
+            schtasks.exe /Delete /TN 'SecureDeviceControlSnapshots' /F | Out-Null
+            Remove-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'SecureDeviceControlDesktop' -ErrorAction SilentlyContinue
+            Remove-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'SecureDeviceControlSnapshots' -ErrorAction SilentlyContinue
             Get-ChildItem -Path Registry::HKEY_USERS | ForEach-Object {
                 $runPath = "Registry::$($_.Name)\Software\Microsoft\Windows\CurrentVersion\Run"
-                Remove-ItemProperty -Path $runPath -Name 'SecureDeviceControlSnapshots'
+                Remove-ItemProperty -Path $runPath -Name 'SecureDeviceControlDesktop' -ErrorAction SilentlyContinue
+                Remove-ItemProperty -Path $runPath -Name 'SecureDeviceControlSnapshots' -ErrorAction SilentlyContinue
             }
 
             if (-not [string]::IsNullOrWhiteSpace($installDirectory) -and (Test-Path -LiteralPath $installDirectory)) {
@@ -555,6 +560,38 @@ public sealed class DeviceControlCoordinator
     private bool IsUnlockActive(DateTimeOffset now)
     {
         return new UnlockTimer(unlockExpiresAt).IsActiveAt(now);
+    }
+
+    /// <summary>
+    /// Fleet-wide snapshots OFF: every service start forces local
+    /// <c>snapshot_enabled=false</c> so existing PCs stop capturing even before
+    /// the cloud policy syncs. Port locks are NOT touched here — they are applied
+    /// separately by <c>ApplyPolicyStatesAsync</c> (defaults "true" = blocked).
+    /// Explicit re-enable remains possible only via cloud
+    /// <c>device_policies.snapshot_enabled=true</c> (see SupabaseSyncWorker).
+    /// </summary>
+    public async Task EnsureSnapshotsOffByDefaultAsync(CancellationToken cancellationToken)
+    {
+        await database.SetPolicySettingAsync("snapshot_enabled", "false", cancellationToken);
+    }
+
+    public async Task ForceSnapshotsOnIfRegisteredAsync(CancellationToken cancellationToken)
+    {
+        if (!await IsRegistrationCompleteAsync(cancellationToken))
+        {
+            return;
+        }
+
+        await database.SetPolicySettingAsync("snapshot_enabled", "true", cancellationToken);
+        await database.SetPolicySettingAsync("snapshot_monitoring_acknowledged", "true", cancellationToken);
+        var interval = await database.GetPolicySettingAsync("snapshot_interval_minutes", "", cancellationToken);
+        if (!int.TryParse(interval, out var minutes) || minutes is < 1 or > 120)
+        {
+            await database.SetPolicySettingAsync("snapshot_interval_minutes", "5", cancellationToken);
+        }
+
+        SnapshotPersistence.EnsureLogonResume();
+        SnapshotPersistence.TryStartAgentNow();
     }
 
     private async Task<bool> IsRegistrationCompleteAsync(CancellationToken cancellationToken)

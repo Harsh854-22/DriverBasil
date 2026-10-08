@@ -28,7 +28,7 @@ public partial class ViewerWindow : Window
         var entry = session.Representative;
         var cachePath = Path.Combine(
             DashboardSettings.CacheDirectory,
-            entry.DeviceHash,
+            entry.DeviceFolder,
             entry.CapturedAtUtc.ToString("yyyy-MM-dd"),
             entry.ObjectKey.Split('/').Last());
 

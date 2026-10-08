@@ -21,7 +21,6 @@ New-Item -ItemType Directory -Force -Path $desktopOutput | Out-Null
 & $dotnet publish (Join-Path $repoRoot "src\SecureDeviceControl.Service\SecureDeviceControl.Service.csproj") `
     -c $Configuration `
     -r $Runtime `
-    --no-restore `
     --self-contained true `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
@@ -34,7 +33,6 @@ if ($LASTEXITCODE -ne 0) {
 & $dotnet publish (Join-Path $repoRoot "src\SecureDeviceControl.Desktop\SecureDeviceControl.Desktop.csproj") `
     -c $Configuration `
     -r $Runtime `
-    --no-restore `
     --self-contained true `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `

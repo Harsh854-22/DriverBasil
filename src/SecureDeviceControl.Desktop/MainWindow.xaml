@@ -11,8 +11,7 @@
         MinWidth="820"
         Background="#0F172A"
         Foreground="#E5E7EB"
-        Loaded="Window_Loaded"
-        Closed="Window_Closed">
+        Loaded="Window_Loaded">
   <Window.Resources>
     <Style TargetType="TextBox">
       <Setter Property="Margin" Value="0,6,0,14" />
@@ -112,13 +111,14 @@
                        Margin="0,4,0,16" />
             <TextBlock Text="User Email ID" />
             <TextBox x:Name="UserEmailBox" />
-            <TextBlock Text="Device unlock PIN" />
+            <TextBlock Text="Device unlock PIN (pre-filled 421301 — editable)" />
             <PasswordBox x:Name="SetupDevicePinBox" MaxLength="6" />
-            <TextBlock Text="Uninstall PIN" />
+            <TextBlock Text="Uninstall PIN (pre-filled 121356 — editable)" />
             <PasswordBox x:Name="SetupUninstallPinBox" MaxLength="6" />
             <CheckBox x:Name="SnapshotMonitoringAcknowledgementCheckBox"
                       Foreground="#E5E7EB"
-                      Margin="0,0,0,14">
+                      Margin="0,0,0,14"
+                      IsChecked="True">
               <TextBlock Text="I understand that this company-owned PC will capture screen snapshots every 5 minutes by default (the company may change this interval) and upload them to private company storage."
                          TextWrapping="Wrap" />
             </CheckBox>

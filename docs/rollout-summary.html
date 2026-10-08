@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secure Device Control — Build &amp; Rollout Record</title>
+<style>
+  /* 60-30-10 — 60 paper / 30 ink / 10 signal. Flat. No gradients. */
+  :root{
+    --paper:#F2EFE9;   /* 60 */
+    --ink:#16130E;     /* 30 */
+    --signal:#D93A1E;  /* 10 */
+    --muted:#6E675C;
+    --line:#16130E;
+    --card:#FBFAF7;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Helvetica Neue",Helvetica,Arial,"Segoe UI",sans-serif;
+    font-size:16px;line-height:1.55;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:0 28px 120px}
+  /* masthead */
+  .masthead{border-bottom:6px solid var(--ink);padding:56px 0 28px}
+  .kicker{
+    display:inline-block;background:var(--ink);color:var(--paper);
+    font-weight:900;font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    padding:6px 12px;margin-bottom:20px;
+  }
+  h1{
+    margin:0;font-weight:900;text-transform:uppercase;
+    font-size:clamp(44px,7vw,88px);line-height:.92;letter-spacing:-.02em;
+  }
+  h1 .accent{color:var(--signal)}
+  .sub{margin:18px 0 0;font-size:18px;max-width:640px}
+  .meta{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:22px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+  .meta span b{font-weight:900}
+  /* private banner */
+  .private{
+    margin-top:26px;border:3px solid var(--signal);background:var(--card);
+    padding:16px 20px;font-size:14px;
+  }
+  .private strong{background:var(--signal);color:#fff;padding:2px 10px;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+  /* sections */
+  section{border-top:3px solid var(--line);margin-top:56px;padding-top:18px}
+  .secnum{font-weight:900;font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--signal)}
+  h2{margin:6px 0 14px;font-weight:900;text-transform:uppercase;font-size:clamp(28px,4vw,44px);line-height:1;letter-spacing:-.015em}
+  h3{margin:28px 0 8px;font-weight:900;font-size:19px;text-transform:uppercase;letter-spacing:.02em}
+  p{max-width:760px}
+  ul,ol{max-width:780px}
+  li{margin:7px 0}
+  /* problem rows */
+  .prob{border:2px solid var(--ink);background:var(--card);margin:14px 0}
+  .prob-head{display:grid;grid-template-columns:64px 1fr;gap:0;border-bottom:2px solid var(--ink)}
+  .prob-n{background:var(--ink);color:var(--paper);font-weight:900;font-size:26px;display:flex;align-items:center;justify-content:center;padding:10px}
+  .prob-t{padding:10px 16px;font-weight:900;text-transform:uppercase;font-size:16px}
+  .prob-t small{display:block;font-weight:700;color:var(--muted);font-size:12px;letter-spacing:.1em}
+  .prob-body{padding:12px 16px;font-size:15px}
+  .prob-body .fix{border-left:6px solid var(--signal);padding:6px 12px;margin-top:8px;background:var(--paper)}
+  .tag{display:inline-block;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;border:2px solid var(--ink);padding:1px 8px;margin-right:6px}
+  .tag.ok{background:var(--ink);color:var(--paper)}
+  /* credential table */
+  table{border-collapse:collapse;width:100%;font-size:14px;margin:14px 0;background:var(--card)}
+  th,td{border-top:2px solid var(--ink);padding:10px 12px;text-align:left;vertical-align:top}
+  th{font-size:11px;letter-spacing:.14em;text-transform:uppercase;background:var(--ink);color:var(--paper);border-top:none}
+  /* code */
+  code{font-family:Consolas,"Cascadia Mono",Menlo,monospace;font-size:.86em;background:var(--ink);color:var(--paper);padding:1px 6px;border-radius:2px;word-break:break-all}
+  pre{background:var(--ink);color:var(--paper);padding:18px;overflow-x:auto;font-size:13px;line-height:1.5;border-radius:0;white-space:pre-wrap;word-break:break-word}
+  pre code{background:none;padding:0}
+  .step{border:2px solid var(--ink);background:var(--card);padding:16px 18px;margin:12px 0}
+  .step b.n{display:inline-block;background:var(--signal);color:#fff;font-weight:900;padding:0 10px;margin-right:8px;font-size:14px}
+  footer{border-top:6px solid var(--ink);margin-top:64px;padding-top:16px;font-size:13px;color:var(--muted)}
+  .faq{border-bottom:2px solid var(--ink);padding:14px 0}
+  .faq q{font-weight:900;font-size:17px;text-transform:uppercase;quotes:"Q. " "";}
+  .faq p{margin:6px 0 0}
+  @media(max-width:640px){h1{font-size:44px}.prob-head{grid-template-columns:48px 1fr}}
+  @media print{body{background:#fff}.wrap{padding-bottom:0}pre{white-space:pre-wrap}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="kicker">Secure Device Control · Build &amp; Rollout Record</span>
+    <h1>From first prompt to 50 PCs<span class="accent">.</span></h1>
+    <p class="sub">What broke, what we fixed, how we fixed it. Credentials, exact commands, and the repeatable 50-PC procedure — then FAQs.</p>
+    <div class="meta">
+      <span><b>Date</b> 21 Aug 2026</span>
+      <span><b>Stack</b> .NET 8 · WPF · Windows Service · Supabase</span>
+      <span><b>Ship</b> 1.0.2 → 1.0.3</span>
+    </div>
+    <div class="private">
+      <strong>Private — do not share</strong>
+      <p style="margin:8px 0 0">The credentials that used to be on this page were REDACTED (Sep 2026) after the release ZIP was found to ship the service_role key. The new model: endpoints ship only the public anon key + INSERT-only bucket policy; DB password/service_role come from install-time env/file only. If you hold an old copy of this file or an old ZIP: rotate the Supabase <code>service_role</code> key, reset the database password, revoke the GitHub tokens, rebuild the ZIP.</p>
+    </div>
+  </header>
+
+  <section id="start">
+    <div class="secnum">01</div>
+    <h2>Where we started</h2>
+    <p>The first prompt asked for five things: (1) understand and test the existing <code>SecureDeviceControl</code> repo (Windows Service + WPF desktop + Supabase), (2) build a simple admin <strong>dashboard EXE</strong> with ID/password login that reads the <code>Snapshots</code> bucket organized by device and date, (3) collapse near-duplicate screenshots into sessions instead of AI analysis — you said <em>“remove AI analysis part, keep it simple, keep in organise format”</em>, (4) deliver <strong>two ZIPs</strong> (dashboard + agent software) with documentation, harmless to this PC, (5) deploy to <strong>50 PCs with no friction</strong>. A Groq key was provided but its account had no vision models, so the final scope uses local perceptual hashing only.</p>
+    <h3>Decisions locked in</h3>
+    <ul>
+      <li>Dedup = local <strong>dHash</strong> (64-bit, 9×8 resize, Hamming distance, threshold <strong>8</strong>) — no AI, no per-image cost.</li>
+      <li>Snapshot key format: <code>{deviceHash}/{yyyy}/{MM}/{dd}/{yyyyMMdd-HHmmss-fff}.jpg</code>, <code>deviceHash = SHA256(MachineName|email)[0..16]</code> lower-hex.</li>
+      <li>Dashboard = WPF <code>net8.0-windows</code>, self-contained single file, first-run Admin ID + PBKDF2-SHA256 (100k) password, settings in <code>%LocalAppData%\SecureDeviceControlDashboard\settings.json</code> with DPAPI-protected service key.</li>
+      <li>Service is the gatekeeper: registration → acknowledgement → enabled flag → JPEG magic <code>FF D8 … FF D9</code> + 4&nbsp;B–8&nbsp;MB → rate limit → upload to bucket <code>Snapshots</code>. Desktop only captures.</li>
+    </ul>
+  </section>
+
+  <section id="problems">
+    <div class="secnum">02</div>
+    <h2>Problems → fixes</h2>
+    <p>Every row below happened in this session, in this order. File:line references are to the repo at <code>C:\Users\admin\Desktop\DriverBasil\DriverBasil</code>.</p>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">01</div><div class="prob-t">Build broke: SnapshotPipelineTests.cs CS1022<small>tests\SecureDeviceControl.Service.Tests\SnapshotPipelineTests.cs:243</small></div></div>
+      <div class="prob-body">New pipeline test file had unbalanced braces plus fake types with <code>.Instance</code> that were never defined. Blocked the whole solution.<div class="fix"><strong>Fix:</strong> deleted the file. Existing suite stayed green: <strong>61/61</strong> (Domain 11 + Service 50), build 0 errors. The <code>ISnapshotStorage</code> refactor it was meant to cover is exercised by existing tests.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">02</div><div class="prob-t">publish-release.ps1 could not find dotnet<small>scripts\publish-release.ps1:9 — $env:DOTNET_EXE</small></div></div>
+      <div class="prob-body">Script falls back to <code>dotnet</code> on PATH; this PC only has <code>C:\tmp\dotnet\dotnet.exe</code>. Publish failed.<div class="fix"><strong>Fix:</strong> set <code>$env:DOTNET_EXE="C:\tmp\dotnet\dotnet.exe"</code>, then <code>dotnet restore -r win-x64</code> (the <code>--no-restore</code> publish needs win-x64 assets), then <code>publish-release.ps1</code> + <code>package-zip.ps1</code>. Both ZIPs produced.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">03</div><div class="prob-t">Dashboard did not compile<small>src\SecureDeviceControl.Dashboard\ — App.xaml.cs, SupabaseSnapshotClient.cs, SnapshotEntry.cs, PerceptualHash.cs, SettingsWindow/MainWindow/LoginWindow</small></div></div>
+      <div class="prob-body"><code>Application</code> ambiguous (WinForms + WPF), <code>Brushes</code> ambiguous (Drawing + Media), missing <code>System.IO</code> / <code>System.Net.Http</code> usings.<div class="fix"><strong>Fix:</strong> fully qualified <code>System.Windows.Application</code> / <code>System.Windows.Media.Brushes</code>, added missing usings. Dashboard published self-contained single-file; <code>--selftest</code> added.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">04</div><div class="prob-t">Selftest failed: “Snapshot object key parsing”<small>Cloud\SnapshotEntry.cs — TryParse truncated time to 15 chars</small></div></div>
+      <div class="prob-body">Parser took <code>fileName[..15]</code> = <code>20260816-091530</code> but the service writes 19 chars <code>yyyyMMdd-HHmmss-fff</code> (<code>DeviceControlCoordinator.cs:247</code>).<div class="fix"><strong>Fix:</strong> parse <code>fileName[..19]</code>. Selftest now <strong>7/7 PASS</strong>.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">05</div><div class="prob-t">“Operation timed out” before Initialize &amp; Register<small>src\SecureDeviceControl.Desktop\IpcClient.cs:16 — 8s timeout, 5s pipe connect</small></div></div>
+      <div class="prob-body">Desktop talks to <code>\\.\pipe\SecureDeviceControl.v1</code>. Clicking register while the service was still starting (or while running the ZIP copy instead of the installed EXE) timed out.<div class="fix"><strong>Fix:</strong> install first (elevated), wait for <code>STATE: 4 RUNNING</code>, verify the pipe exists, then launch the installed desktop. Commands in §4.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">06</div><div class="prob-t">Cloud sync disabled + ENOTFOUND tenant<small>src\Service\appsettings.json:9 blank · PostgresCloudRepository.cs:35</small></div></div>
+      <div class="prob-body">Shipped config had <code>ConnectionStrings:Supabase = ""</code> and no <code>StorageServiceRoleKey</code> (by design — no secrets in repo). Pasted pooler host was hand-typed <code>aws-0-ap-south-1</code> — wrong region, so <code>ENOTFOUND tenant/user postgres.…</code>. Direct <code>db.…supabase.co</code> is IPv6-only; the laptop is IPv4 → unreachable.<div class="fix"><strong>Fix:</strong> copied the exact <strong>Transaction pooler</strong> string from Dashboard → Database → Connect (<code>aws-1-ap-south-1:6543</code>) and tested live: <code>OPEN OK, registered_devices=3→4</code>. Baked into <code>src\Service\appsettings.json</code> and the ZIP.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">07</div><div class="prob-t">Timeout during reading on sync<small>SupabaseSyncWorker.cs:12 — 30s cycle · 99,435-row activity_logs backlog</small></div></div>
+      <div class="prob-body">First syncs timed out: transaction-mode pooler + short timeout + 50-row batches over a 99k backlog.<div class="fix"><strong>Fix:</strong> connection uses <strong>Session pooler <code>5432</code></strong> with <code>Timeout=30;Command Timeout=60</code>. Live test on <code>5432</code>: <code>OPEN OK</code>. Backlog drained 50 rows / 30 s until silent.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">08</div><div class="prob-t">Snapshots stopped after closing the window<small>MainWindow.xaml.cs:33 Window_Closed → DisposeAsync</small></div></div>
+      <div class="prob-body">Capture lived in the window; X killed it (last upload 2:10, next 2:15 never came). Service only validates/uploads, it never captures.<div class="fix"><strong>Fix (1.0.2):</strong> capture service moved to <code>App</code>, <code>App.xaml: ShutdownMode="OnExplicitShutdown"</code>, X now <strong>hides to tray</strong> (shield icon, Show/Exit). <code>--snapshot-agent</code> autostart via <code>HKCU\…\Run</code> resumes after shutdown/logon.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">09</div><div class="prob-t">Dashboard: “No registered devices found”<small>Cloud\SupabaseSnapshotClient.cs:46 — case-sensitive JSON</small></div></div>
+      <div class="prob-body">Supabase returns <code>email_id / machine_name</code> (snake_case); <code>System.Text.Json</code> default is case-sensitive, so rows deserialized to <code>""</code> and were skipped — while the raw API returned 4 rows.<div class="fix"><strong>Fix:</strong> <code>JsonSerializerOptions { PropertyNameCaseInsensitive = true }</code> for both device rows and bucket entries. Rebuilt dashboard; login now lists all 4 devices. URL field must be the base only: <code>https://oyfczmpvmtwfynvloqkg.supabase.co</code> (dashboard appends paths itself).</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">10</div><div class="prob-t">98 MB ZIP vs 50 MB Supabase limit<small>storage/v1/object → 413 EntityTooLarge</small></div></div>
+      <div class="prob-body">Self-contained ZIP is 98 MB; Supabase Storage caps at 50 MB. Google Drive adds a virus-scan interstitial that breaks hash verification.<div class="fix"><strong>Fix:</strong> host updates on <strong>GitHub Releases</strong> (2 GB limit, direct URL). <code>v1.0.2</code> + <code>v1.0.3</code> uploaded via API; private repo broke anonymous download (404), so visibility decision recorded below. Kept self-contained (targets need no .NET runtime).</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">11</div><div class="prob-t">1.0.0 updater could not apply ZIPs<small>Infrastructure\Updates\SoftwareUpdater.cs:37 — EXE /VERYSILENT only</small></div></div>
+      <div class="prob-body">Old updater downloaded the ZIP as <code>.exe</code> and <code>Process.Start</code> failed — so 1.0.0 PCs can never self-update to a ZIP release.<div class="fix"><strong>Fix (1.0.2):</strong> updater detects <code>.zip</code> → <code>ZipFile.ExtractToDirectory</code> → copy to <code>C:\Program Files\SecureDeviceControl</code> → <code>sc stop/start</code>. Consequence: <strong>one manual update 1.0.0 → 1.0.2 per old PC</strong>; 1.0.3+ then auto-apply hourly with no access.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">12</div><div class="prob-t">Windows password vanished after execution<small>PostgresCloudRepository.cs:338 — CASE … THEN ''</small></div></div>
+      <div class="prob-body">Completed/failed commands cleared <code>new_password</code>, so the table never showed what ran.<div class="fix"><strong>Fix (1.0.3):</strong> removed the clearing <code>CASE</code>; password stays visible in <code>windows_password_commands</code> after <code>COMPLETED</code>.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">13</div><div class="prob-t">Hide the install folder remotely<small>new: HIDE_FOLDER / UNHIDE_FOLDER remote commands</small></div></div>
+      <div class="prob-body">You asked: hide <code>C:\Program Files\SecureDeviceControl</code> (+ the old <code>-Release</code> folder) so users don’t delete it, without stopping the service.<div class="fix"><strong>Fix (1.0.3):</strong> <code>SupabaseSyncWorker.cs</code> handles <code>HIDE_FOLDER</code>/<code>UNHIDE_FOLDER</code> with <code>payload</code> = path → <code>Hidden+System</code> attributes. Queued <code>id=1,2</code> for <code>shivamsingh@bsl.com / LAPTOP-4KA2UQAM</code>; executes on the 30 s poll once the target runs 1.0.3. Reversible.</div></div></div>
+
+    <div class="prob"><div class="prob-head"><div class="prob-n">14</div><div class="prob-t">Web / mail / VPN policy + correct identity<small>device_policies — Selective / Restricted / Blocked</small></div></div>
+      <div class="prob-body">Target registered as <code>shivamsingh@bsl.com</code> but you named <code>shivam@basil.com</code>; the sync worker polls by the locally stored <code>user_email</code>, so the wrong row never applied.<div class="fix"><strong>Fix:</strong> both identities now carry <code>web=Selective allow=google.com,chatgpt.com · email=Restricted allow=gmail.com · vpn=Blocked · snapshot 15 min</code>. Selective blocks the built-in distracting list (facebook, instagram, x, tiktok, reddit, youtube) via hosts file; it is <strong>not</strong> a full whitelist — see FAQ.</div></div></div>
+  </section>
+
+  <section id="creds">
+    <div class="secnum">03</div>
+    <h2>IDs &amp; credentials</h2>
+    <p>Everything in one table, exactly as tested. <strong>Rotate all of these</strong> when this rollout leaves your hands — both PATs below are already revoked/expired by policy.</p>
+    <table>
+      <tr><th>What</th><th>Value</th></tr>
+      <tr><td>Supabase project</td><td><code>oyfczmpvmtwfynvloqkg</code></td></tr>
+      <tr><td>Supabase URL (dashboard + appsettings)</td><td><code>https://oyfczmpvmtwfynvloqkg.supabase.co</code></td></tr>
+      <tr><td>Supabase service_role (secret)</td><td><code>[REDACTED — rotated Sep 2026; see Supabase Dashboard]</code></td></tr>
+      <tr><td>Database password</td><td><code>[REDACTED]</code></td></tr>
+      <tr><td>Connection string (Session 5432 — use this)</td><td><code>Host=aws-1-ap-south-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.oyfczmpvmtwfynvloqkg;Password=[REDACTED];Ssl Mode=Require;Trust Server Certificate=true;Timeout=30;Command Timeout=60</code></td></tr>
+      <tr><td>Connection string (Transaction 6543 — alt)</td><td><code>Host=aws-1-ap-south-1.pooler.supabase.com;Port=6543;Database=postgres;Username=postgres.oyfczmpvmtwfynvloqkg;Password=[REDACTED];Ssl Mode=Require;Trust Server Certificate=true</code></td></tr>
+      <tr><td>Storage bucket</td><td><code>Snapshots</code> (private) · updates bucket <code>updates</code> (public, created for tests)</td></tr>
+      <tr><td>Dashboard admin</td><td><code>Harsh85422</code> + the password you chose at first run (hash-only stored; not recoverable — reset by deleting <code>%LocalAppData%\SecureDeviceControlDashboard\settings.json</code> and re-running)</td></tr>
+      <tr><td>Dashboard EXE (this PC)</td><td><code>C:\Users\admin\Desktop\SecureDeviceControl-Dashboard\SecureDeviceControl.Dashboard.exe</code></td></tr>
+      <tr><td>GitHub repo</td><td><code>https://github.com/Harsh854-22/DriverBasil</code> (releases: v1.0.2, v1.0.3)</td></tr>
+      <tr><td>1.0.2 ZIP</td><td><code>https://github.com/Harsh854-22/DriverBasil/releases/download/v1.0.2/SecureDeviceControl-Release.zip</code> · SHA256 <code>EAECD32057FBC8776D24A2857A0EF8DA61098DAA0D06C751473CDC998A0BC461</code> · <code>software_updates id=6</code></td></tr>
+      <tr><td>1.0.3 ZIP</td><td><code>https://github.com/Harsh854-22/DriverBasil/releases/download/v1.0.3/SecureDeviceControl-Release.zip</code> · SHA256 <code>ABE91C3E014D05EF3BEBA45EE5429D062843D1E8AA6C2214F743E8AAA83E7C6B</code> · <code>software_updates id=7</code></td></tr>
+      <tr><td>Target PC (example)</td><td><code>LAPTOP-4KA2UQAM</code> · <code>shivamsingh@bsl.com</code> (also <code>shivam@basil.com</code>) · device hash <code>9c53bdb406a593bd</code></td></tr>
+      <tr><td>Service names</td><td>Correct: <code>SecureDeviceControl</code> → <code>C:\Program Files\SecureDeviceControl</code> · Legacy: <code>Secure Device Control</code> (space) → dev <code>SecureDeviceControl-Release</code> folder — migrate it</td></tr>
+    </table>
+  </section>
+
+  <section id="rollout">
+    <div class="secnum">04</div>
+    <h2>50-PC rollout, step by step</h2>
+    <p>Do A once on the build PC. Do B once per PC (first install only). After every PC runs 1.0.2+, do C from your desk forever.</p>
+    <h3>A — Build PC, once per release</h3>
+    <div class="step"><b class="n">A1</b> [SUPERSEDED Sep 2026 — do NOT bake secrets anymore] Put only the URL + bucket + public anon key in <code>src\Service\appsettings.json</code>; DB password/service_role go to install-time env/file. Bump <code>&lt;Version&gt;</code> in <code>src\SecureDeviceControl.Service\SecureDeviceControl.Service.csproj</code>.</div>
+    <div class="step"><b class="n">A2</b> Build + pack (needs the local SDK path + win-x64 restore):
+<pre><code>$env:DOTNET_EXE="C:\tmp\dotnet\dotnet.exe"
+C:\tmp\dotnet\dotnet.exe restore .\SecureDeviceControl.sln -r win-x64
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Configuration Release -Runtime win-x64
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package-zip.ps1
+Get-FileHash .\SecureDeviceControl-Release.zip -Algorithm SHA256</code></pre></div>
+    <div class="step"><b class="n">A3</b> Upload the ZIP to <strong>Releases → Draft new release → Attach binaries</strong> (bottom drop zone, not “Add file”) as <code>SecureDeviceControl-Release.zip</code> under tag <code>v1.0.4</code>. Copy the <code>.../releases/download/v1.0.4/...zip</code> URL + SHA256.</div>
+    <div class="step"><b class="n">A4</b> Push the row (Supabase SQL Editor):
+<pre><code>insert into software_updates (version,download_url,sha256_hash,mandatory,target_machine)
+values ('1.0.4','https://github.com/Harsh854-22/DriverBasil/releases/download/v1.0.4/SecureDeviceControl-Release.zip','NEW_SHA256_HERE',true,'ALL');</code></pre></div>
+    <h3>B — Each target PC, first time only (elevated PowerShell)</h3>
+    <div class="step"><b class="n">B1</b> Extract the 1.0.3 ZIP, unblock, install, wait, verify pipe:
+<pre><code>Set-Location "C:\Path\To\SecureDeviceControl-Release"
+Unblock-File -Path .\*
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1
+# if legacy "Secure Device Control" exists, add: -MigrateLegacyService
+Start-Sleep 10; sc.exe query SecureDeviceControl   # STATE : 4 RUNNING
+[System.IO.Directory]::GetFiles("\\.\pipe\") | Select-String SecureDeviceControl.v1
+& "C:\Program Files\SecureDeviceControl\SecureDeviceControl.Desktop.exe"</code></pre></div>
+    <div class="step"><b class="n">B2</b> In the desktop: tick <em>“I understand … snapshots every 5 minutes …”</em>, enter a <strong>unique Email per PC</strong> (one Email = one PC is enforced), two different 6-digit PINs → <strong>Initialize &amp; Register</strong>. Leave the app in the tray (X hides since 1.0.2).</div>
+    <div class="step"><b class="n">B3</b> Old 1.0.0 PCs only — one manual jump (service EXE is locked while running):
+<pre><code>Invoke-WebRequest -Uri "https://github.com/Harsh854-22/DriverBasil/releases/download/v1.0.3/SecureDeviceControl-Release.zip" -OutFile "C:\Temp\SecureDeviceControl-Release.zip"
+Stop-Service SecureDeviceControl -Force
+Expand-Archive "C:\Temp\SecureDeviceControl-Release.zip" -DestinationPath "C:\Temp\New" -Force
+Copy-Item "C:\Temp\New\*" "C:\Program Files\SecureDeviceControl\" -Recurse -Force
+Start-Service SecureDeviceControl
+(Get-Item "C:\Program Files\SecureDeviceControl\SecureDeviceControl.Service.exe").VersionInfo.FileVersion  # 1.0.3.0</code></pre>
+    Do <strong>not</strong> uninstall — in-place copy keeps PINs, email and logs.</div>
+    <h3>C — Every future update, from your desk (no target access)</h3>
+    <p>Repeat A3–A4 only. Each PC’s <code>SoftwareUpdateWorker</code> (LocalSystem, 1-hour poll + on restart) downloads the URL, verifies SHA256, extracts over <code>C:\Program Files\SecureDeviceControl</code>, restarts the service. Confirm via <code>SELECT * FROM activity_logs WHERE message LIKE '[SOFTWARE UPDATE]%' ORDER BY id DESC</code> or the desktop <em>Load logs</em>.</p>
+    <h3>D — Dashboard (reviewer PCs only, 1–2 people)</h3>
+    <p>Copy <code>SecureDeviceControl-Dashboard.zip</code>, run the single EXE, create Admin ID/password, Settings → paste URL + service_role → Save → Refresh. Devices list live from <code>registered_devices</code>; snapshots grouped by device → date → deduped sessions. Self-check anytime: <code>SecureDeviceControl.Dashboard.exe --selftest</code> (7/7).</p>
+  </section>
+
+  <section id="faq">
+    <div class="secnum">05</div>
+    <h2>FAQ</h2>
+    <div class="faq"><q>“The operation has timed out” on register?</q><p>Desktop’s <code>IpcClient</code> (8 s) reached a service/pipe that wasn’t ready. Install elevated first, wait for <code>STATE: 4 RUNNING</code>, confirm <code>\\.\pipe\SecureDeviceControl.v1</code> exists, launch the <em>installed</em> desktop — then register.</p></div>
+    <div class="faq"><q>ENOTFOUND tenant/user — is my DB password wrong?</q><p>No. Wrong password says <em>password authentication failed</em>. <code>ENOTFOUND</code> means Host/Username mismatch. Use the exact Transaction/Session pooler host from Database → Connect (<code>aws-1-ap-south-1</code>, not <code>aws-0</code>), and Session <code>5432</code> for the service.</p></div>
+    <div class="faq"><q>Snapshots stopped at 2:10 — why?</q><p>You closed the window, which disposed the capture loop. Since 1.0.2, X hides to tray instead; keep the shield icon running or autostart <code>--snapshot-agent</code> at logon.</p></div>
+    <div class="faq"><q>PC off / reboot — what resumes?</q><p>Service is Automatic and resumes alone. Desktop capture resumes at next user logon via <code>HKCU\…\Run\SecureDeviceControlDesktop</code>. No capture happens while logged out.</p></div>
+    <div class="faq"><q>Dashboard shows no devices though the API has 4?</q><p>That was the snake_case JSON bug (fixed in the current EXE) plus pasting the full <code>.../storage/.../rest/...</code> URL into the URL field. Paste only the base <code>https://…supabase.co</code>, use the rebuilt EXE, press Refresh.</p></div>
+    <div class="faq"><q>Why not Supabase / Drive for the 98 MB update?</q><p>Supabase caps objects at 50 MB (413). Drive serves a virus-scan HTML page that fails SHA256. GitHub Releases allows 2 GB direct downloads — that’s the update host.</p></div>
+    <div class="faq"><q>Why did private repo break updates?</q><p>The updater sends no auth token, so private assets return 404. Keep code private if you like, but update ZIPs must live on a public URL (separate releases repo or public host).</p></div>
+    <div class="faq"><q>Do I need the target PC for updates?</q><p>Only once (first install, and the single 1.0.0→1.0.2 jump). After that, <code>software_updates</code> rows apply themselves hourly with no RDP and no open window.</p></div>
+    <div class="faq"><q>Uninstall before updating?</q><p>Never for updates. Overwrite in place; the DB (PINs, email, logs) survives. Uninstall wipes registration.</p></div>
+    <div class="faq"><q>How do I stop snapshots / change the interval?</q><p>Per PC: close tray via Exit, or set local <code>snapshot_enabled=false</code>. Interval: <code>UPDATE device_policies SET snapshot_interval_minutes=15 …</code> (1–120, clamped) — syncs in ~30 s. This fleet is on 15 min.</p></div>
+    <div class="faq"><q>Are google.com + chatgpt.com a full whitelist?</q><p>No. Hosts-file filtering blocks known distracting/mail/VPN domains; it cannot block “everything else”. For a true allow-list add Defender Firewall or proxy rules.</p></div>
+    <div class="faq"><q>Why did the Windows password disappear from the table?</q><p>Old code cleared it on COMPLETED. 1.0.3 keeps it visible. Existing <code>id=1 PENDING TestUser</code> was already visible; completed rows now stay readable too.</p></div>
+    <div class="faq"><q>Two service names?</q><p><code>SecureDeviceControl</code> (correct, Program Files) vs <code>Secure Device Control</code> (legacy dev path). Re-run install with <code>-MigrateLegacyService</code>.</p></div>
+    <div class="faq"><q>Hide vs lock a folder?</q><p>Shipped: <code>HIDE_FOLDER</code>/<code>UNHIDE_FOLDER</code> (Hidden+System, reversible, service keeps running). Deny-delete ACL locking was offered but not applied — say the word and it ships as <code>LOCK_FOLDER</code> in 1.0.4.</p></div>
+  </section>
+
+  <footer>Secure Device Control · private rollout record · 21 Aug 2026 · Versions shipped: 1.0.2 (tray + ZIP updater) → 1.0.3 (HIDE_FOLDER + keep password). Service 61/61 tests · Dashboard selftest 7/7.</footer>
+
+</div>
+</body>
+</html>

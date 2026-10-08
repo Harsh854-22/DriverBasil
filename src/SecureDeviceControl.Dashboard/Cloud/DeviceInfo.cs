@@ -1,13 +1,12 @@
-using System.Security.Cryptography;
-using System.Text;
+using SecureDeviceControl.Shared.Snapshots;
 
 namespace SecureDeviceControl.Dashboard.Cloud;
 
-public sealed record DeviceInfo(string Email, string MachineName, string DeviceHash, DateTimeOffset UpdatedAt)
+public sealed record DeviceInfo(string Email, string MachineName, string StoragePrefix, DateTimeOffset UpdatedAt)
 {
-    public static string ComputeDeviceHash(string machineName, string email)
+    public static string ComputeLegacyDeviceHash(string machineName, string email)
     {
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{machineName}|{email}")))[..16].ToLowerInvariant();
+        return SnapshotObjectKey.LegacyDeviceHash(machineName, email);
     }
 
     public string DisplayName => $"{MachineName} ({Email})";

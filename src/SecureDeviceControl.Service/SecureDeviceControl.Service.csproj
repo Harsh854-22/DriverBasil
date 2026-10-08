@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-SecureDeviceControl.Service-80ba8b09-e249-410f-a1b0-fd7fed05c9c0</UserSecretsId>
+    <Version>1.0.7</Version>
+    <AssemblyVersion>1.0.7.0</AssemblyVersion>
+    <FileVersion>1.0.7.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

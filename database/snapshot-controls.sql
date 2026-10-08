@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS public.device_policies (
     email_filter_mode TEXT NOT NULL DEFAULT 'OFF',
     allowed_email_domains TEXT NOT NULL DEFAULT 'company.com',
     vpn_filter_mode TEXT NOT NULL DEFAULT 'OFF',
-    snapshot_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    snapshot_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     snapshot_interval_minutes INTEGER NOT NULL DEFAULT 5,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -75,7 +75,7 @@ ALTER TABLE public.device_policies
     ADD COLUMN IF NOT EXISTS vpn_filter_mode TEXT NOT NULL DEFAULT 'OFF';
 
 ALTER TABLE public.device_policies
-    ADD COLUMN IF NOT EXISTS snapshot_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+    ADD COLUMN IF NOT EXISTS snapshot_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
 ALTER TABLE public.device_policies
     ADD COLUMN IF NOT EXISTS snapshot_interval_minutes INTEGER NOT NULL DEFAULT 5;

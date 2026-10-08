@@ -7,6 +7,7 @@ using System.Windows.Media.Imaging;
 using SecureDeviceControl.Dashboard.Cloud;
 using SecureDeviceControl.Dashboard.Imaging;
 using SecureDeviceControl.Dashboard.Settings;
+using SecureDeviceControl.Shared.Snapshots;
 
 namespace SecureDeviceControl.Dashboard;
 
@@ -97,9 +98,17 @@ public partial class MainWindow : Window
         try
         {
             StatusText.Text = "Listing snapshots...";
-            var prefix = $"{device.DeviceHash}/{day:yyyy}/{day:MM}/{day:dd}/";
+            var prefixes = SnapshotObjectKey.DayPrefixes(device.MachineName, device.Email, day);
+
             using var client = new SupabaseSnapshotClient(settings.SupabaseUrl, serviceKey);
-            var keys = await client.ListObjectKeysAsync(prefix, CancellationToken.None);
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var prefix in prefixes)
+            {
+                foreach (var key in await client.ListObjectKeysAsync(prefix, CancellationToken.None))
+                {
+                    keys.Add(key);
+                }
+            }
 
             var entries = keys
                 .Select(SnapshotEntry.TryParse)
@@ -192,7 +201,7 @@ public partial class MainWindow : Window
         var fileName = entry.ObjectKey.Split('/').Last();
         return Path.Combine(
             DashboardSettings.CacheDirectory,
-            entry.DeviceHash,
+            entry.DeviceFolder,
             entry.CapturedAtUtc.ToString("yyyy-MM-dd"),
             fileName);
     }

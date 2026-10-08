@@ -75,7 +75,15 @@ public sealed class SnapshotCaptureService : IAsyncDisposable
 
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), stoppingCts.Token);
+                TimeSpan delay;
+                lock (settingsLock)
+                {
+                    delay = lastSuccessfulCaptureAt is null
+                        ? TimeSpan.FromSeconds(5)
+                        : TimeSpan.FromSeconds(30);
+                }
+
+                await Task.Delay(delay, stoppingCts.Token);
             }
             catch (OperationCanceledException)
             {

@@ -13,3 +13,6 @@ obj/
 *.db-wal
 SecureDeviceControl-Release/
 temp-package/
+# Install-time cloud secrets (never commit — provisioned per PC by an admin).
+cloud-credentials.json
+**/cloud-credentials.json

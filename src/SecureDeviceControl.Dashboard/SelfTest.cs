@@ -3,6 +3,7 @@ using System.IO;
 using SecureDeviceControl.Dashboard.Auth;
 using SecureDeviceControl.Dashboard.Cloud;
 using SecureDeviceControl.Dashboard.Imaging;
+using SecureDeviceControl.Shared.Snapshots;
 
 namespace SecureDeviceControl.Dashboard;
 
@@ -14,10 +15,13 @@ public static class SelfTest
 
         failures += Check(output, "Snapshot object key parsing", () =>
         {
-            var entry = SnapshotEntry.TryParse("abc123def456ab12/2026/08/16/20260816-091530-123.jpg");
+            var entry = SnapshotEntry.TryParse("OFFICE-PC-01/2026/08/16/20260816-091530-123.jpg");
+            var flat = SnapshotEntry.TryParse("QA-KUNAL/2026-09-16/20260916-071500-117.jpg");
             return entry is not null
-                   && entry.DeviceHash == "abc123def456ab12"
-                   && entry.CapturedAtUtc == new DateTimeOffset(2026, 8, 16, 9, 15, 30, 123, TimeSpan.Zero);
+                   && entry.DeviceFolder == "OFFICE-PC-01"
+                   && entry.CapturedAtUtc == new DateTimeOffset(2026, 8, 16, 9, 15, 30, 123, TimeSpan.Zero)
+                   && flat is not null
+                   && flat.DeviceFolder == "QA-KUNAL";
         });
 
         failures += Check(output, "Invalid object keys are rejected", () =>
@@ -27,10 +31,11 @@ public static class SelfTest
                    && SnapshotEntry.TryParse("a/2026/08/16/notatime.jpg") is null;
         });
 
-        failures += Check(output, "Device hash matches service format", () =>
+        failures += Check(output, "Storage prefix uses the PC name", () =>
         {
-            var hash = DeviceInfo.ComputeDeviceHash("OFFICE-PC-01", "employee@company.com");
-            return hash.Length == 16 && hash == DeviceInfo.ComputeDeviceHash("OFFICE-PC-01", "employee@company.com");
+            var prefix = SnapshotObjectKey.SanitizeMachineName("OFFICE-PC-01");
+            return prefix == "OFFICE-PC-01"
+                   && SnapshotObjectKey.LegacyDeviceHash("OFFICE-PC-01", "employee@company.com").Length == 16;
         });
 
         byte[] imageA = CreateGradientJpeg(seed: 1);

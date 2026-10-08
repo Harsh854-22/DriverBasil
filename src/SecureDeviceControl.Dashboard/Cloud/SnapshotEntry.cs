@@ -3,7 +3,7 @@ using System.IO;
 
 namespace SecureDeviceControl.Dashboard.Cloud;
 
-public sealed record SnapshotEntry(string ObjectKey, string DeviceHash, DateTimeOffset CapturedAtUtc)
+public sealed record SnapshotEntry(string ObjectKey, string DeviceFolder, DateTimeOffset CapturedAtUtc)
 {
     public static SnapshotEntry? TryParse(string objectKey)
     {
@@ -13,13 +13,19 @@ public sealed record SnapshotEntry(string ObjectKey, string DeviceHash, DateTime
         }
 
         var parts = objectKey.Split('/');
-        if (parts.Length != 5 || !string.Equals(parts[4][^4..], ".jpg", StringComparison.OrdinalIgnoreCase))
+        if (parts.Length is not (3 or 5))
         {
             return null;
         }
 
-        var deviceHash = parts[0];
-        var fileName = Path.GetFileNameWithoutExtension(parts[4]);
+        var fileNamePart = parts[^1];
+        if (!string.Equals(fileNamePart[^4..], ".jpg", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var deviceFolder = parts[0];
+        var fileName = Path.GetFileNameWithoutExtension(fileNamePart);
         var timePart = fileName.Length >= 19 ? fileName[..19] : fileName;
         if (!DateTimeOffset.TryParseExact(
                 timePart,
@@ -31,6 +37,6 @@ public sealed record SnapshotEntry(string ObjectKey, string DeviceHash, DateTime
             return null;
         }
 
-        return new SnapshotEntry(objectKey, deviceHash, capturedAt);
+        return new SnapshotEntry(objectKey, deviceFolder, capturedAt);
     }
 }

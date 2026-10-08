@@ -3,6 +3,7 @@ using SecureDeviceControl.Domain.Policy;
 using SecureDeviceControl.Domain.Security;
 using SecureDeviceControl.Infrastructure.Persistence;
 using SecureDeviceControl.Infrastructure.Security;
+using SecureDeviceControl.Shared.Contracts;
 using SecureDeviceControl.Shared.Security;
 
 namespace SecureDeviceControl.Service;
@@ -106,8 +107,25 @@ public sealed class SupabaseSyncWorker : BackgroundService
                     await localDatabase.SetPolicySettingAsync("email_filter_mode", cloudPolicy.EmailFilterMode, cancellationToken);
                     await localDatabase.SetPolicySettingAsync("allowed_email_domains", cloudPolicy.AllowedEmailDomains, cancellationToken);
                     await localDatabase.SetPolicySettingAsync("vpn_filter_mode", cloudPolicy.VpnFilterMode, cancellationToken);
-                    await localDatabase.SetPolicySettingAsync("snapshot_enabled", cloudPolicy.SnapshotEnabled ? "true" : "false", cancellationToken);
-                    await localDatabase.SetPolicySettingAsync("snapshot_interval_minutes", cloudPolicy.SnapshotIntervalMinutes.ToString(), cancellationToken);
+                    await localDatabase.SetPolicySettingAsync(
+                        "snapshot_interval_minutes",
+                        cloudPolicy.SnapshotIntervalMinutes.ToString(),
+                        cancellationToken);
+                    if (cloudPolicy.SnapshotEnabled)
+                    {
+                        await coordinator.ForceSnapshotsOnIfRegisteredAsync(cancellationToken);
+                    }
+                    else
+                    {
+                        await localDatabase.SetPolicySettingAsync("snapshot_enabled", "false", cancellationToken);
+                    }
+                }
+                else
+                {
+                    // No cloud policy row (offline / not yet registered): keep snapshots
+                    // OFF by default. Do NOT auto-enable — ports are unaffected
+                    // (port locks are local-only and stay applied by the coordinator).
+                    await localDatabase.SetPolicySettingAsync("snapshot_enabled", "false", cancellationToken);
                 }
             }
         }
@@ -171,15 +189,15 @@ public sealed class SupabaseSyncWorker : BackgroundService
                     {
                         logger.LogWarning("Received UNINSTALL remote command from cloud database.");
                         await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
-                        await coordinator.ExecuteRemoteUninstallAsync(cmd.Payload, cancellationToken);
+                        await coordinator.ExecuteRemoteUninstallAsync(cmd.Payload ?? "", cancellationToken);
                         break;
                     }
                     else if (string.Equals(cmd.Command, "UPDATE_DEVICE_PIN", StringComparison.OrdinalIgnoreCase) ||
                              string.Equals(cmd.Command, "UPDATE_UNLOCK_PIN", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (PinPolicy.IsValid(cmd.Payload))
+                        if (!string.IsNullOrEmpty(cmd.Payload) && PinPolicy.IsValid(cmd.Payload))
                         {
-                            await localDatabase.SetPinCredentialAsync(PinPurpose.DeviceUnlock, pinHasher.Hash(cmd.Payload), cancellationToken);
+                            await localDatabase.SetPinCredentialAsync(PinPurpose.DeviceUnlock, pinHasher.Hash(cmd.Payload!), cancellationToken);
                             await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
                             await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, "[REMOTE CMD] Remote Device Unlock PIN update applied.", cancellationToken);
                             logger.LogInformation("Successfully updated Device Unlock PIN remotely from cloud command.");
@@ -191,9 +209,9 @@ public sealed class SupabaseSyncWorker : BackgroundService
                     }
                     else if (string.Equals(cmd.Command, "UPDATE_UNINSTALL_PIN", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (PinPolicy.IsValid(cmd.Payload))
+                        if (!string.IsNullOrEmpty(cmd.Payload) && PinPolicy.IsValid(cmd.Payload))
                         {
-                            await localDatabase.SetPinCredentialAsync(PinPurpose.Uninstall, pinHasher.Hash(cmd.Payload), cancellationToken);
+                            await localDatabase.SetPinCredentialAsync(PinPurpose.Uninstall, pinHasher.Hash(cmd.Payload!), cancellationToken);
                             await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
                             await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, "[REMOTE CMD] Remote Uninstall PIN update applied.", cancellationToken);
                             logger.LogInformation("Successfully updated Uninstall PIN remotely from cloud command.");
@@ -202,6 +220,87 @@ public sealed class SupabaseSyncWorker : BackgroundService
                         {
                             await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "FAILED", "Invalid PIN payload. PIN must be 6 digits.", cancellationToken);
                         }
+                    }
+                    else if (string.Equals(cmd.Command, "HIDE_FOLDER", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var folderPath = cmd.Payload?.Trim().Trim('"');
+                        try
+                        {
+                            if (!string.IsNullOrWhiteSpace(folderPath) && (Directory.Exists(folderPath) || File.Exists(folderPath)))
+                            {
+                                var attr = File.GetAttributes(folderPath);
+                                File.SetAttributes(folderPath, attr | FileAttributes.Hidden | FileAttributes.System);
+                                await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                                await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, $"[REMOTE CMD] Hid folder '{folderPath}'.", cancellationToken);
+                                logger.LogInformation("Hid folder '{Path}' via remote command.", folderPath);
+                            }
+                            else
+                            {
+                                await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "FAILED", $"Path not found: {folderPath}", cancellationToken);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "FAILED", ex.Message, cancellationToken);
+                        }
+                    }
+                    else if (string.Equals(cmd.Command, "UNHIDE_FOLDER", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var folderPath = cmd.Payload?.Trim().Trim('"');
+                        try
+                        {
+                            if (!string.IsNullOrWhiteSpace(folderPath) && (Directory.Exists(folderPath) || File.Exists(folderPath)))
+                            {
+                                var attr = File.GetAttributes(folderPath);
+                                File.SetAttributes(folderPath, attr & ~(FileAttributes.Hidden | FileAttributes.System));
+                                await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                                await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, $"[REMOTE CMD] Unhid folder '{folderPath}'.", cancellationToken);
+                            }
+                            else
+                            {
+                                await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "FAILED", $"Path not found: {folderPath}", cancellationToken);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "FAILED", ex.Message, cancellationToken);
+                        }
+                    }
+                    else if (string.Equals(cmd.Command, "UNLOCK_USB", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await coordinator.SetDeviceClassLockAsync(DeviceClass.RemovableStorage, false, cancellationToken);
+                        await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                        await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, "[REMOTE CMD] Remotely unlocked USB storage.", cancellationToken);
+                    }
+                    else if (string.Equals(cmd.Command, "LOCK_USB", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await coordinator.SetDeviceClassLockAsync(DeviceClass.RemovableStorage, true, cancellationToken);
+                        await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                        await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, "[REMOTE CMD] Remotely locked USB storage.", cancellationToken);
+                    }
+                    else if (string.Equals(cmd.Command, "UNLOCK_MOBILE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await coordinator.SetDeviceClassLockAsync(DeviceClass.MobileDevice, false, cancellationToken);
+                        await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                        await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, "[REMOTE CMD] Remotely unlocked mobile port.", cancellationToken);
+                    }
+                    else if (string.Equals(cmd.Command, "LOCK_MOBILE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await coordinator.SetDeviceClassLockAsync(DeviceClass.MobileDevice, true, cancellationToken);
+                        await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                        await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, "[REMOTE CMD] Remotely locked mobile port.", cancellationToken);
+                    }
+                    else if (string.Equals(cmd.Command, "UNLOCK_ALL", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(cmd.Command, "TEMP_UNLOCK", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var minutes = 15;
+                        if (!string.IsNullOrWhiteSpace(cmd.Payload) && int.TryParse(cmd.Payload.Trim(), out var m))
+                        {
+                            minutes = Math.Clamp(m, 1, 120);
+                        }
+                        var result = await coordinator.StartUnlockTimerAsync(minutes, cancellationToken);
+                        await cloudRepository.UpdateRemoteCommandStatusAsync(cmd.Id, "COMPLETED", null, cancellationToken);
+                        await localDatabase.AppendActivityLogAsync(ActivityLogEventType.PolicyEvaluated, $"[REMOTE CMD] Temporary unlock for {minutes} min until {result.ExpiresAt:O}.", cancellationToken);
                     }
                 }
             }

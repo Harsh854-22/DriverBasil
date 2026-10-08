@@ -6,17 +6,30 @@ public static class SnapshotStartupRegistrar
 {
     private const string RunKeyPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     private const string ValueName = "SecureDeviceControlDesktop";
+    private const string LegacyValueName = "SecureDeviceControlSnapshots";
 
     public static void EnableForCurrentUser()
     {
         var executablePath = Environment.ProcessPath;
         if (string.IsNullOrWhiteSpace(executablePath))
         {
-            throw new InvalidOperationException("The application path is unavailable.");
+            return;
         }
 
-        using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true)
-            ?? throw new InvalidOperationException("Windows could not enable snapshot monitoring at sign-in.");
-        key.SetValue(ValueName, $"\"{executablePath}\" --snapshot-agent", RegistryValueKind.String);
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true);
+            if (key is null)
+            {
+                return;
+            }
+
+            key.SetValue(ValueName, $"\"{executablePath}\" --snapshot-agent", RegistryValueKind.String);
+            key.DeleteValue(LegacyValueName, throwOnMissingValue: false);
+        }
+        catch
+        {
+            // Sign-in resume is also registered machine-wide by the Windows service.
+        }
     }
 }

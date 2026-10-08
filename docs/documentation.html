@@ -134,10 +134,15 @@
       <nav>
         <a href="#start">Start here</a>
         <a href="#install">Install and repair</a>
+        <a href="#newpc">New PC checklist</a>
+        <a href="#offline-replace">Replace old offline PCs</a>
+        <a href="#zero-touch">Zero-touch install</a>
         <a href="#workflow">Daily workflow</a>
+        <a href="#snapshots">Snapshot monitoring</a>
+        <a href="#dashboard">Admin dashboard</a>
         <a href="#permissions">Permissions and security</a>
         <a href="#activities">Activities and testing</a>
-        <a href="#remote">Remote-management boundary</a>
+        <a href="#remote">Remote management</a>
         <a href="#support">Troubleshooting</a>
       </nav>
     </aside>
@@ -146,23 +151,25 @@
       <header>
         <div class="eyebrow">Windows 10 and Windows 11</div>
         <h1>Local hardware control that installs predictably.</h1>
-        <p class="lead">A two-PIN Windows Service for USB-storage and mobile-device control. This guide is written for both office administrators and the people who support the PCs.</p>
+        <p class="lead">A two-PIN Windows Service for USB-storage and mobile-device control with opt-in screen-snapshot monitoring. This guide is written for both office administrators and the people who support the PCs.</p>
       </header>
 
       <section id="start">
         <h2>Start Here</h2>
         <div class="callout good">
-          <strong>No API key is required for local device protection.</strong> The packaged desktop and service are self-contained. The administrator installs the service once, then the desktop app communicates only through the local Windows service.
+          <strong>Local device protection works offline; snapshots &amp; remote need Supabase.</strong> The desktop talks to the service via local IPC; the service syncs to Supabase when cloud credentials are installed at setup (env vars or <code>cloud-credentials.json</code> — never baked into this ZIP). See <a href="#remote">Remote Management</a> for DB access.
         </div>
         <div class="split">
           <div class="panel">
             <h3>Package contents</h3>
             <ul>
-              <li><code>SecureDeviceControl.Desktop.exe</code>: administrator interface.</li>
-              <li><code>SecureDeviceControl.Service.exe</code>: privileged Windows Service.</li>
+              <li><code>SecureDeviceControl.Desktop.exe</code>: administrator interface and snapshot capture agent (virtual-screen JPEG, max 1920px, quality 70).</li>
+              <li><code>SecureDeviceControl.Service.exe</code>: privileged Windows Service — enforces policy and validates/uploads snapshots.</li>
+              <li><code>SecureDeviceControl-Dashboard.zip</code> (separate download): admin dashboard for Supabase bucket review — device/date organized, deduped by perceptual hash.</li>
               <li><code>install-service.ps1</code>: approved installation and repair script.</li>
               <li><code>Install-Service.cmd</code>: convenience launcher for the installer.</li>
               <li><code>uninstall-service.ps1</code>: PIN-authorized removal script.</li>
+              <li><code>documentation.html</code>: this guide (also inside the dashboard ZIP).</li>
             </ul>
           </div>
           <div class="panel">
@@ -176,7 +183,7 @@
           </div>
         </div>
         <div class="callout warn">
-          <strong>Important:</strong> the legacy package contained a direct cloud database credential. Rotate that credential in the provider dashboard and discard every old ZIP or extracted copy. The corrected release does not package a cloud credential.
+          <strong>Important:</strong> this release ships with NO secrets — <code>appsettings.json</code> holds only the project URL, bucket name, and public anon key. Cloud credentials are installed per-PC at setup (see <a href="#remote">Remote Management</a>). The <code>service_role</code> key lives only on the admin dashboard PC. Rotate it in Supabase Dashboard if a previous ZIP (which baked the key) ever leaked, then discard old ZIPs. Keep every ZIP private for the 50-PC rollout.
         </div>
       </section>
 
@@ -213,6 +220,212 @@ Get-WinEvent -FilterHashtable @{ LogName = "Application"; StartTime = (Get-Date)
   Format-List</code></pre>
       </section>
 
+      <section id="newpc">
+        <h2>New PC Checklist <span class="tag">STEP BY STEP · NO ISSUES</span></h2>
+        <div class="callout good">
+          <strong>No credential pasting needed.</strong> This ZIP ships with <code>appsettings.json</code> pre-configured (Supabase pooler + storage key). The installer copies it into <code>C:\Program Files\SecureDeviceControl</code> automatically. You only type an Email and two PINs at registration.
+        </div>
+        <h3>Before you touch the new PC</h3>
+        <ol>
+          <li>Pick a <strong>fresh Email ID never used on another PC</strong> (one Email = one PC is enforced — a reused Email is rejected with <em>already registered to PC</em>).</li>
+          <li>Decide the two <strong>different six-digit PINs</strong> (Device Unlock + Uninstall). Decide whether snapshots apply to this PC.</li>
+          <li>Use the latest <code>SecureDeviceControl-Release.zip</code> (Service <code>1.0.3.0</code> or newer — check <code>(Get-Item .\SecureDeviceControl.Service.exe).VersionInfo.FileVersion</code> in the extracted folder).</li>
+        </ol>
+        <h3>Step 1 — Install (elevated PowerShell, ~2 min)</h3>
+        <pre><code>Set-Location "C:\Path\To\SecureDeviceControl-Release"
+Unblock-File -Path .\*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1
+# If a legacy "Secure Device Control" (with space) exists, use instead:
+# powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1 -MigrateLegacyService
+Start-Sleep 10
+sc.exe query SecureDeviceControl</code></pre>
+        <p>Expect <code>STATE : 4 RUNNING</code>. Then confirm the IPC pipe is listening (this is what prevents <em>operation timed out</em>):</p>
+        <pre><code>[System.IO.Directory]::GetFiles("\\.\pipe\") | Select-String SecureDeviceControl.v1
+# must print: \\.\pipe\SecureDeviceControl.v1</code></pre>
+        <h3>Step 2 — Register (the installed desktop, not the ZIP copy)</h3>
+        <pre><code>&amp; "C:\Program Files\SecureDeviceControl\SecureDeviceControl.Desktop.exe"</code></pre>
+        <ol>
+          <li>Enter the fresh <strong>Email ID</strong>, the <strong>Device Unlock PIN</strong>, a <strong>different Uninstall PIN</strong>.</li>
+          <li>Tick <strong><code>I understand that this company-owned PC will capture screen snapshots …</code></strong> only if snapshots apply. Unticked = uploads rejected.</li>
+          <li>Click <strong>Initialize &amp; Register</strong>. Ports lock immediately — that <em>is</em> the blocked state.</li>
+        </ol>
+        <h3>Step 3 — Verify (before you leave the PC)</h3>
+        <pre><code># 1. Desktop shows "Ready" after Refresh
+# 2. Service log is clean (no ENOTFOUND / Timeout):
+Get-WinEvent -FilterHashtable @{LogName="Application"; StartTime=(Get-Date).AddMinutes(-2)} |
+  Where-Object { $_.Message -match "SecureDeviceControl" } |
+  Select-Object -First 4 TimeCreated, Message | Format-List
+# 3. Cloud row exists (Supabase SQL Editor):
+#    select * from registered_devices where email_id='new-employee@company.com';
+# 4. Tray shield icon present — X hides to tray, snapshots keep running</code></pre>
+        <h3>Mistakes that cause every support call</h3>
+        <table>
+          <thead><tr><th>Mistake</th><th>Symptom</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr><td>Registering before the service is RUNNING</td><td><em>The operation has timed out</em></td><td>Wait for <code>STATE: 4 RUNNING</code> + pipe check (Step 1) before opening the desktop.</td></tr>
+            <tr><td>Running the desktop from the ZIP folder</td><td>Zone-block / path mismatch</td><td>Always launch <code>C:\Program Files\SecureDeviceControl\SecureDeviceControl.Desktop.exe</code>.</td></tr>
+            <tr><td>Reusing an Email from another PC</td><td><em>already registered to PC</em></td><td>Use a fresh Email per PC, always.</td></tr>
+            <tr><td>Closing the window on old 1.0.0 builds</td><td>Snapshots stop</td><td>1.0.2+: X hides to tray. Old PCs need the one-time manual update (see #support).</td></tr>
+            <tr><td>Two service names (<code>SecureDeviceControl</code> + <code>Secure Device Control</code>)</td><td>Wrong/old binary running</td><td>Re-run installer with <code>-MigrateLegacyService</code>.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="offline-replace">
+        <h2>Replace Old Offline-Only PCs <span class="tag">NO INTERNET NEEDED · KEEPS PINS</span></h2>
+        <div class="callout good">
+          <strong>Use this for PCs that run a previous version with no Supabase connection (port-locking only, always offline).</strong> The current release works fully offline: USB/mobile locking, both PINs, and activity logs are all local (SQLite). Cloud sync just retries every 30 seconds and does nothing harmful while offline (<code>SupabaseSyncWorker.cs</code> + <code>PostgresCloudRepository.cs</code>). You replace the program files <strong>in place</strong> — existing PINs, Email, and logs survive.
+        </div>
+        <h3>0 — Prepare the USB stick (once, on an online PC)</h3>
+        <ol>
+          <li>Copy the latest <code>SecureDeviceControl-Release.zip</code> onto a USB stick. Note its version and hash so you can confirm it on the target later.</li>
+        </ol>
+        <pre><code>(Get-Item .\SecureDeviceControl.Service.exe).VersionInfo.FileVersion
+Get-FileHash .\SecureDeviceControl-Release.zip -Algorithm SHA256</code></pre>
+        <h3>1 — On each offline PC (elevated PowerShell, ~5 min)</h3>
+        <ol>
+          <li>Sign in as a Windows administrator. Copy the ZIP from the USB to a local folder (e.g. <code>C:\Temp\SDC-Update</code>) and extract it there — do not run it from the USB.</li>
+          <li>Quick check of what is installed now (tells you which installer flag you need):</li>
+        </ol>
+        <pre><code>Get-Service SecureDeviceControl, "Secure Device Control" -ErrorAction SilentlyContinue | Format-Table Name, Status, DisplayName
+(Get-Item "C:\Program Files\SecureDeviceControl\SecureDeviceControl.Service.exe" -ErrorAction SilentlyContinue).VersionInfo.FileVersion
+Get-ChildItem "C:\ProgramData\SecureDeviceControl\secure-device-control.db*" -ErrorAction SilentlyContinue | Format-Table Name, Length</code></pre>
+        <ol start="3">
+          <li>Back up the local database (30 seconds, your rollback if anything goes wrong):</li>
+        </ol>
+        <pre><code>Copy-Item "C:\ProgramData\SecureDeviceControl\secure-device-control.db*" -Destination "C:\Temp\SDC-Update\backup-" -Force
+# or: xcopy "C:\ProgramData\SecureDeviceControl\secure-device-control.db*" C:\Temp\SDC-Update\backup\ /Y</code></pre>
+        <ol start="4">
+          <li>Install over the top. This stops the service, copies the new EXEs + <code>appsettings.json</code> into <code>C:\Program Files\SecureDeviceControl</code>, and restarts — it does <strong>not</strong> touch <code>C:\ProgramData\SecureDeviceControl</code>, so PINs and logs are kept:</li>
+        </ol>
+        <pre><code>Set-Location "C:\Temp\SDC-Update\SecureDeviceControl-Release"
+Unblock-File -Path .\*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1
+# ONLY if the check in step 2 showed a service literally named "Secure Device Control" (with a space), use instead:
+# powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1 -MigrateLegacyService
+Start-Sleep 10
+sc.exe query SecureDeviceControl</code></pre>
+        <p>Expect <code>STATE : 4 RUNNING</code>. Do <strong>not</strong> use <code>update-service.cmd</code> — it still references the legacy service name and will fail on current installs.</p>
+        <h3>2 — Verify before you leave (2 min, no re-registration)</h3>
+        <pre><code>[System.IO.Directory]::GetFiles("\\.\pipe\") | Select-String SecureDeviceControl.v1
+# must print: \\.\pipe\SecureDeviceControl.v1
+&amp; "C:\Program Files\SecureDeviceControl\SecureDeviceControl.Desktop.exe"</code></pre>
+        <ol>
+          <li>Desktop shows <strong>Ready</strong> (not <em>Needs Registration</em>) after <em>Refresh</em> — that proves the old PINs/Email survived.</li>
+          <li>Attach a test pendrive: it must be <strong>blocked</strong>. Unlock briefly with the existing Device Unlock PIN, confirm access, then re-lock.</li>
+          <li><em>Load logs</em> shows a fresh <code>ServiceStarted</code> entry. Cloud warnings (<code>ENOTFOUND</code> / timeout) while offline are <strong>expected and harmless</strong> — local protection does not depend on them.</li>
+        </ol>
+        <div class="callout warn">
+          <strong>Do not add <code>-ResetLocalData</code> unless you must.</strong> It moves <code>secure-device-control.db*</code> into <code>C:\ProgramData\SecureDeviceControl\recovery\&lt;timestamp&gt;</code> and forces you to create both PINs again. Use it only for <code>SQLite Error 14: unable to open database file</code>, a corrupt DB, or forgotten PINs — then re-register exactly like a new PC (see <a href="#newpc">New PC checklist</a>).
+        </div>
+        <h3>What works offline after the swap</h3>
+        <table>
+          <thead><tr><th>Feature</th><th>Offline?</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td>USB / mobile port locking + timed unlock</td><td>Yes</td><td>Enforced by the service from the local DB every 5 s. No network involved.</td></tr>
+            <tr><td>Both PINs, activity logs, CSV export</td><td>Yes</td><td>Stored in <code>C:\ProgramData\SecureDeviceControl\secure-device-control.db</code>.</td></tr>
+            <tr><td>Snapshot capture validation</td><td>Partial</td><td>Desktop still captures; uploads log <code>SnapshotUploadFailed</code> until the PC is online. Nothing breaks.</td></tr>
+            <tr><td>Remote commands, cloud dashboard, silent auto-updates</td><td>No</td><td>Need internet + Supabase. They resume automatically if the PC ever goes online — no reinstall.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="zero-touch">
+        <h2>Zero-Touch Install <span class="tag">ONE COMMAND · DEFAULT PINS</span></h2>
+        <div class="callout good">
+          <strong>Install, type the Email, hit Enter — done.</strong> <code>install-service.ps1 -AutoProvision</code> installs the service <strong>and</strong> sets the PINs without opening the desktop app. Ports lock on service start; cloud sync and remote control activate automatically whenever the PC reaches Supabase. It works identically on a fresh PC, a PC with the legacy <code>Secure Device Control</code> service, or a PC with the current service — including old port-lock-only installs that never had Supabase.
+        </div>
+        <div class="callout">
+          <strong>Easiest path — double-click, no PowerShell typing:</strong> extract the ZIP, double-click <code>Install-ZeroTouch.cmd</code>, click Yes on the UAC prompt, type the Email, hit Enter. It self-elevates, installs, provisions, and writes <code>%TEMP%\SDC-Install-Result.txt</code> (service state, version, pipe, registration — no PINs). Send that file to your admin for verification against Supabase.
+        </div>
+        <h3>The 30-second version (interactive)</h3>
+        <pre><code>Set-Location "C:\Path\To\SecureDeviceControl-Release"
+Unblock-File -Path .\*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1 -AutoProvision
+# Prompt: Email ID for this PC — type it, hit Enter. Ports lock. Done.</code></pre>
+        <h3>Fully unattended (scripted / USB note)</h3>
+        <pre><code>powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1 -AutoProvision -UserEmail "pc-07@company.com" -NonInteractive</code></pre>
+        <h3>Defaults and options</h3>
+        <table>
+          <thead><tr><th>Setting</th><th>Default</th><th>Change it</th></tr></thead>
+          <tbody>
+            <tr><td>Device Unlock PIN (port unlock)</td><td><code>421301</code></td><td><code>-DeviceUnlockPin 987654</code></td></tr>
+            <tr><td>Uninstall PIN</td><td><code>121356</code></td><td><code>-UninstallPin 654321</code></td></tr>
+            <tr><td>Snapshot acknowledgement</td><td>Recorded (uploads enabled)</td><td><code>-AcknowledgeSnapshots:$false</code> to leave uploads rejected</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><strong>Rotate the bootstrap PINs once the PC is online.</strong> The defaults get every PC protected in seconds, but every copy of this ZIP carries them — change each PC to its own PINs with remote <code>UPDATE_DEVICE_PIN</code> / <code>UPDATE_UNINSTALL_PIN</code> commands (see <a href="#remote">Remote Management</a>), or pass per-PC PINs to the installer.</div>
+        <h3>What it handles automatically</h3>
+        <ul>
+          <li><strong>Fresh PC:</strong> installs service, provisions PINs + Email, locks ports on start, queues cloud registration (syncs within ~30 s once online).</li>
+          <li><strong>Legacy service (<code>Secure Device Control</code>, with space):</strong> removed automatically — no <code>-MigrateLegacyService</code> flag needed.</li>
+          <li><strong>Existing install (any previous version):</strong> binaries overwritten in place; stored Email kept (used as the prompt default); both PINs reset to the installer values; existing lock settings and logs untouched.</li>
+          <li><strong>Corrupt local database (incl. SQLite Error 14):</strong> damaged <code>secure-device-control.db*</code> moved to a timestamped <code>C:\ProgramData\SecureDeviceControl\recovery</code> folder — never deleted — and re-provisioned fresh.</li>
+        </ul>
+        <h3>Verify (before you leave the PC)</h3>
+        <pre><code>sc.exe query SecureDeviceControl
+# expect: STATE : 4 RUNNING
+# Desktop (optional): &amp; "C:\Program Files\SecureDeviceControl\SecureDeviceControl.Desktop.exe" → Refresh → Ready
+# Online PCs only — confirm cloud row:
+# select * from registered_devices where email_id='pc-07@company.com';</code></pre>
+        <p>Remote lock/unlock and remote PIN changes need no further setup: the service polls <code>remote_commands</code> every ~30 s for its <code>email_id + machine_name</code> (see <a href="#remote">Remote Management</a>). Offline PCs simply pick this up the first time they get internet — no reinstall.</p>
+      </section>
+
+      <section id="verify105">
+        <h2>Verify 1.0.5 On Target <span class="tag">NO PASTING NEEDED</span></h2>
+        <p>Cloud credentials are installed at setup — not baked into the ZIP (<code>install-service.ps1 -CloudCredentialsFile</code> or machine env vars). After the one-click install, run this block <strong>on the target PC</strong> (elevated PowerShell) — expected results in comments:</p>
+        <pre><code># 1. Version + pipe (proves you are on the baked build, not the old ZIP copy)
+(Get-Item "C:\Program Files\SecureDeviceControl\SecureDeviceControl.Service.exe").VersionInfo.FileVersion
+# expect: 1.0.5.0
+sc.exe query SecureDeviceControl
+[System.IO.Directory]::GetFiles("\\.\pipe\") | Select-String SecureDeviceControl.v1
+# must print: \\.\pipe\SecureDeviceControl.v1
+
+# 2. Cloud connected (the Shivam fix baked in)
+Get-WinEvent -FilterHashtable @{LogName="Application"; StartTime=(Get-Date).AddMinutes(-3)} |
+  Where-Object {$_.Message -match "SecureDeviceControl"} |
+  Select-Object -First 4 TimeCreated,Message | Format-List
+# expect: no ENOTFOUND, no Timeout during reading — maybe "Successfully synced" or silence = ok
+
+# 3. PINs + policy (1.0.5 pre-filled 421301/121356, Enter on Email only)
+# Desktop should show PINs pre-filled, Snapshot ticked, tray Shield present
+python -c "import sqlite3; c=sqlite3.connect(r'C:\ProgramData\SecureDeviceControl\secure-device-control.db').cursor(); c.execute(\"SELECT Value FROM PolicySettings WHERE Key='user_email'\"); print('user_email',c.fetchone()); c.execute(\"SELECT Key,Value FROM PolicySettings WHERE Key LIKE '%snapshot%' OR Key LIKE '%filter%'\"); print('\n'.join(f'{k}={v}' for k,v in c.fetchall()))"
+
+# 4. Hosts filter actually applied
+type C:\Windows\System32\drivers\etc\hosts | Select-String "SDC_WEB_FILTER" -Context 0,5
+# should contain 127.0.0.1 facebook.com etc. when Selective is active
+
+# 5. Snapshot (tray Shield must be running)
+Get-Process SecureDeviceControl.Desktop | Format-Table Id,Path
+# X hides to tray, not kills — wait 15m then: select * from activity_logs where event_type='SnapshotUploaded' order by id desc limit 1;</code></pre>
+        <div class="callout warn"><strong>If FileVersion still shows 1.0.3.0/1.0.0.0</strong> — you are on the old ZIP. Redo the manual <code>Expand-Archive</code> + <code>Copy-Item</code> + <code>Restart-Service</code> for <code>1.0.5</code> (<code>44A888...</code>) then re-run this block.</div>
+      </section>
+
+      <section id="shivam-fix">
+        <h2>How We Fixed Shivam’s PC <span class="tag">STEP BY STEP — OPERATION TIMEOUT + SUPABASE</span></h2>
+        <p>This is the exact sequence that took <code>shivamsingh@bsl.com / LAPTOP-4KA2UQAM</code> from <em>The operation has timed out</em> + <em>ENOTFOUND tenant</em> to <em>STATE: 4 RUNNING + Cloud sync</em>. Run it in order on any PC that shows the same symptoms.</p>
+        <h3>1. Avoid timeout — wait for the pipe</h3>
+        <pre><code># Elevated, from the extracted 1.0.5 ZIP folder:
+Set-Location "C:\Path\To\SecureDeviceControl-Release"
+Unblock-File -Path .\*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-service.ps1 -AutoProvision
+# If legacy "Secure Device Control" (with space) exists, the flag is implied by -AutoProvision
+Start-Sleep 10
+sc.exe query SecureDeviceControl   # expect STATE : 4 RUNNING
+[System.IO.Directory]::GetFiles("\\.\pipe\") | Select-String SecureDeviceControl.v1
+# must print \\.\pipe\SecureDeviceControl.v1 — only then open
+# &amp; "C:\Program Files\SecureDeviceControl\SecureDeviceControl.Desktop.exe"
+# (not the ZIP copy) and register. Timeout = IPC 8 s (IpcClient.cs:16) reaching a service not yet listening.</code></pre>
+        <h3>2. Fix Supabase — Host was wrong</h3>
+        <p>Shipped <code>src\Service\appsettings.json:9</code> was blank; the hand-typed pooler <code>aws-0-ap-south-1</code> gave <code>ENOTFOUND tenant/user postgres.oyfczmpvmtwfynvloqkg</code>. Direct <code>db.…supabase.co:5432</code> is IPv6-only (<code>2406:da1a:…</code>) and unreachable on IPv4. <strong>Correct Transaction pooler</strong> from Dashboard → Database → Connect → <code>aws-1-ap-south-1:6543</code> tested live <code>OPEN OK registered_devices=3→4</code>, then baked as Session <code>5432</code> with <code>Timeout=30;Command Timeout=60</code> to survive the <code>99k</code> backlog via <code>SupabaseSyncWorker.cs:12</code> 30 s cycles. The <code>appsettings.json</code> in the current ZIP already contains:</p>
+        <pre><code>Host=aws-1-ap-south-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.oyfczmpvmtwfynvloqkg;Password=[REDACTED];Ssl Mode=Require;Trust Server Certificate=true;Timeout=30;Command Timeout=60
+Supabase:Url = https://oyfczmpvmtwfynvloqkg.supabase.co
+Supabase:StorageServiceRoleKey = [REDACTED — never shipped; install-time env/file only]</code></pre>
+        <p>No per-PC pasting — the installer copies this file to <code>C:\Program Files\SecureDeviceControl\appsettings.json</code> automatically. The only manual step was the one-time host correction; it is now baked.</p>
+        <h3>3. After that — verify like § verify105 above</h3>
+        <p>Same 5 checks: <code>1.0.5.0</code>, pipe exists, <code>Get-WinEvent</code> shows no <code>ENOTFOUND</code>, hosts file has <code>SDC_WEB_FILTER</code>, tray running.</p>
+      </section>
+
       <section id="workflow">
         <h2>Daily Workflow</h2>
         <table>
@@ -230,6 +443,85 @@ Get-WinEvent -FilterHashtable @{ LogName = "Application"; StartTime = (Get-Date)
           <li><strong>Uninstall PIN:</strong> creates a short-lived removal authorization. Store it separately from the Device Unlock PIN.</li>
           <li>Do not use example PINs, staff birthdays, or one company-wide PIN.</li>
         </ul>
+      </section>
+
+      <section id="snapshots">
+        <h2>Snapshot Monitoring <span class="tag">OPT-IN · RATE-LIMITED</span></h2>
+        <div class="callout">
+          <strong>What it does:</strong> when enabled, the desktop app captures the virtual screen (all monitors composited) and asks the local service to upload a JPEG to private company storage. The service — not the desktop — is the gatekeeper: it checks registration, explicit acknowledgement, the enabled flag, JPEG validity, and the interval before any upload. If any check fails, the upload is rejected and an activity log entry is written.
+        </div>
+        <div class="split">
+          <div class="panel">
+            <h3>How it is turned on</h3>
+            <ol>
+              <li>During first-run registration (<em>First-run Registration &amp; PIN setup</em>) tick:<br><code>I understand that this company-owned PC will capture screen snapshots every 5 minutes by default …</code></li>
+              <li>Click <strong>Initialize &amp; Register</strong>. The service stores three settings: <code>snapshot_monitoring_acknowledged</code> (<code>true</code> only if ticked), <code>snapshot_enabled=true</code>, <code>snapshot_interval_minutes=5</code>.</li>
+              <li>The desktop calls <code>SnapshotStartupRegistrar.EnableForCurrentUser()</code> which writes <code>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</code> → <code>SecureDeviceControlDesktop="&lt;Desktop.exe&gt;" --snapshot-agent</code>. On next sign-in the desktop starts minimized (<code>App.xaml.cs --snapshot-agent</code> → <code>MainWindow(startMinimized)</code>) and resumes capture without user interaction.</li>
+              <li>If the box was not ticked, the same three settings are stored as <code>acknowledged=false</code> and every upload is rejected with <code>Unauthorized</code> until an administrator re-registers with acknowledgement.</li>
+            </ol>
+          </div>
+          <div class="panel">
+            <h3>What is captured &amp; how</h3>
+            <ul>
+              <li><strong>Capture:</strong> <code>SnapshotCaptureService.CaptureVirtualScreenAsJpeg()</code> — <code>SystemInformation.VirtualScreen</code> → 24bpp bitmap → scaled so the long edge ≤ 1920 px → JPEG quality 70 via <code>ImageCodecInfo</code>. Throws if no active screen.</li>
+              <li><strong>Interval:</strong> default <code>5</code> min, clamped <code>1–120</code> min. The service enforces <code>now - last_snapshot_uploaded_at &lt; interval → RateLimited</code>. The desktop also throttles locally and polls every 30 s.</li>
+              <li><strong>Validation (service: <code>DeviceControlCoordinator.UploadSnapshotAsync</code>):</strong> must be registered; <code>acknowledged==true &amp;&amp; enabled==true</code>; JPEG magic <code>FF D8 … FF D9</code>; <code>4 B – 8 MB</code>; PC-name object key generation; storage available.</li>
+              <li><strong>Object key:</strong> <code>{PC-NAME}/{yyyy}/{MM}/{dd}/{yyyyMMdd-HHmmss-fff}.jpg</code> where the folder is the sanitized Windows computer name (see <code>SnapshotObjectKey</code>). Time is <code>TimeProvider.GetUtcNow()</code>.</li>
+              <li><strong>Storage:</strong> <code>ISnapshotStorage → SupabaseSnapshotStorage</code> (DI in <code>Program.cs: ISnapshotStorage, SupabaseSnapshotStorage</code>) uploads to Supabase Storage bucket <code>Snapshots</code>. Success → <code>last_snapshot_uploaded_at = now:O</code> + <code>SnapshotUploaded</code> log; failure → <code>SnapshotUploadFailed</code> + warning.</li>
+            </ul>
+          </div>
+        </div>
+        <h3>Using it day-to-day</h3>
+        <ol>
+          <li><strong>Keep the desktop running.</strong> After registration, <code>SecureDeviceControl.Desktop.exe</code> auto-starts at sign-in (Run key + scheduled task). After shutdown/reboot the Windows service re-applies port/web/VPN/mail policy and relaunches the snapshot agent in the signed-in session. Closing the tray icon pauses capture until the service starts it again.</li>
+          <li><strong>Check status:</strong> <em>Refresh</em> calls <code>GetServiceStatus</code> which returns <code>SnapshotEnabled</code>, <code>SnapshotIntervalMinutes</code>, <code>SnapshotMonitoringAcknowledged</code>. The desktop forwards these to <code>snapshotCaptureService.UpdateSettings()</code> — no separate UI toggle; interval is policy-controlled (change <code>snapshot_interval_minutes</code> in the service DB if your policy needs it).</li>
+          <li><strong>Verify uploads:</strong> <em>Load logs</em> → look for <code>SnapshotUploaded</code> (“A screen snapshot was uploaded to company storage.”) and <code>SnapshotUploadFailed</code>. Each attempt is also subject to the service rate-limit message: <em>The next snapshot is not due yet.</em></li>
+          <li><strong>Change interval (advanced):</strong> an administrator with DB access can update <code>snapshot_interval_minutes</code> via the service IPC/database layer; the next <code>Refresh</code> picks it up. Values outside <code>1–120</code> are clamped.</li>
+          <li><strong>Disable:</strong> set <code>snapshot_enabled=false</code> or <code>snapshot_monitoring_acknowledged=false</code> in the service DB, or remove the Run value <code>SecureDeviceControlDesktop</code>. The service will then reject uploads with <code>Unauthorized: Screenshot monitoring is not enabled</code>.</li>
+        </ol>
+        <div class="callout warn">
+          <strong>Employee notice:</strong> only enable snapshot monitoring on company-owned PCs where employees have been informed per local law and company policy. The registration checkbox text is the explicit acknowledgement record. For the 50-PC rollout, include this notice in your deployment checklist and keep the desktop autostart enabled.
+        </div>
+        <h3>IPC contract (for support)</h3>
+        <pre><code>// Desktop → Service (via IpcClient / NamedPipe)
+IpcOperation.UploadSnapshot
+payload: UploadSnapshotRequest { byte[] ImageBytes, DateTimeOffset CapturedAt }
+// Service validates and throws IpcRequestException with codes:
+//   NotInitialized, BadRequest (not JPEG / &gt;8 MB), Unauthorized (not acknowledged/enabled),
+//   RateLimited, InternalError</code></pre>
+      </section>
+
+      <section id="dashboard">
+        <h2>Admin Dashboard — Reviewing Snapshots <span class="tag">SEPARATE ZIP</span></h2>
+        <p>The dashboard is a second ZIP (<code>SecureDeviceControl-Dashboard.zip</code>) — a self-contained single-file WPF app (<code>net8.0-windows</code>, single-file, self-contained, <code>artifacts/dashboard/SecureDeviceControl.Dashboard.exe</code>). It does not install a service; it only reads from Supabase.</p>
+        <div class="split">
+          <div class="panel">
+            <h3>First run &amp; login</h3>
+            <ol>
+              <li>Extract the dashboard ZIP and run <code>SecureDeviceControl.Dashboard.exe</code>. On first run you create an <strong>Admin ID + password</strong> (PBKDF2-SHA256, 100 000 iterations).</li>
+              <li>Credentials are stored in <code>%LocalAppData%\SecureDeviceControlDashboard\settings.json</code> with the service-role key DPAPI-protected. No key is stored in the repo.</li>
+              <li>Open <em>Settings</em> and enter your Supabase URL (<code>https://…supabase.co</code>) and <code>service_role</code> key. The dashboard validates <code>https</code>.</li>
+              <li>Run self-test any time: <code>SecureDeviceControl.Dashboard.exe --selftest</code> — checks key parsing, PC-name storage prefix, perceptual-hash, session grouping, and password hashing (7 checks, exit 0 on PASS).</li>
+            </ol>
+          </div>
+          <div class="panel">
+            <h3>How the gallery works</h3>
+            <ul>
+              <li><strong>Devices:</strong> <code>SupabaseSnapshotClient.GetRegisteredDevicesAsync()</code> paginates <code>rest/v1/registered_devices?select=email_id,machine_name,updated_at</code> (page 500) and computes <code>deviceHash</code> the same way as the service for matching.</li>
+              <li><strong>Snapshots:</strong> Storage API <code>storage/v1/object/list/Snapshots</code> with <code>pageSize 1000</code>; each object key is parsed by <code>SnapshotEntry.TryParse("{hash}/{yyyy}/{MM}/{dd}/{yyyyMMdd-HHmmss-fff}.jpg")</code> (19-char time part — fixed from the earlier 15-char bug).</li>
+              <li><strong>Organization:</strong> grouped by <code>deviceHash</code> → calendar date → time-sorted.</li>
+              <li><strong>Dedup / sessions:</strong> local <code>dHash</code> (64-bit, 9×8 resize, grayscale, horizontal gradient, <code>HammingDistance</code> via <code>BitOperations.PopCount</code>). <code>SnapshotSessionizer.GroupSessions(frames, threshold: 8)</code> collapses consecutive near-duplicates into a <code>SnapshotSession</code> (<code>StartUtc</code>, <code>EndUtc</code>, <code>FrameCount</code>, thumbnail). Idle desktops collapse to one session; a full screen change (distance &gt; 8) starts a new session.</li>
+              <li><strong>Viewer:</strong> session cards show device/email, date, time range, frame count, thumbnail; click to open <code>ViewerWindow</code> with full JPEG.</li>
+            </ul>
+          </div>
+        </div>
+        <h3>Daily use</h3>
+        <ol>
+          <li>Pick a device (by email/machine → hash) and a date. Sessions appear already deduped — a 4-hour idle period may show as one session with <code>FrameCount=48</code> instead of 48 identical rows.</li>
+          <li>Use the dashboard on one admin PC; it needs only the Supabase URL/key — no install on the 50 monitored PCs.</li>
+          <li>Rotate the Supabase <code>service_role</code> key periodically; update it in <em>Settings</em> (DPAPI-protected). If the Groq or Supabase key was ever pasted in chat, rotate it immediately.</li>
+        </ol>
+        <div class="callout good"><strong>Tip for 50 PCs:</strong> deploy the main release ZIP to all PCs (service + desktop with autostart). Give the dashboard ZIP to only the 1–2 reviewers who need to audit snapshots. They run the exe with no install friction — single file, no dependencies.</div>
       </section>
 
       <section id="permissions">
@@ -254,14 +546,16 @@ Get-WinEvent -FilterHashtable @{ LogName = "Application"; StartTime = (Get-Date)
 
       <section id="activities">
         <h2>Activities And Testing</h2>
-        <p>Use the desktop app's <strong>Load logs</strong> action after validating the service. Local activity records include service starts, PIN validation events, policy changes, temporary unlocks, and detected removable-drive writes.</p>
+        <p>Use the desktop app's <strong>Load logs</strong> action after validating the service. Local activity records include service starts, PIN validation events, policy changes, temporary unlocks, detected removable-drive writes, and snapshot events (<code>SnapshotUploaded</code> / <code>SnapshotUploadFailed</code>).</p>
         <h3>Release acceptance test</h3>
         <ol>
           <li>Install on a test PC using the normal installation commands.</li>
           <li>Verify the service is running and the desktop reports <strong>Needs Registration</strong>.</li>
-          <li>Set two distinct PINs, attach a test pendrive, and verify it is blocked.</li>
+          <li>Set two distinct PINs — tick the snapshot acknowledgement box if you want to test snapshots — attach a test pendrive, and verify it is blocked.</li>
           <li>Unlock for 15 minutes with the Device Unlock PIN and verify access.</li>
-          <li>Restart Windows, then verify the service starts automatically and the policy is restored.</li>
+          <li>If snapshot monitoring was acknowledged: keep the desktop running for 6 minutes, then <em>Load logs</em> and verify a <code>SnapshotUploaded</code> entry; check Supabase Storage bucket <code>Snapshots</code> for key <code>{hash}/2026/…/{yyyyMMdd-HHmmss-fff}.jpg</code>. If not acknowledged, verify uploads are rejected.</li>
+          <li>Open <code>SecureDeviceControl.Dashboard.exe</code> (separate ZIP) with your Supabase URL/key, pick the test device/date, and verify the new snapshot appears as one session (deduped via dHash).</li>
+          <li>Restart Windows, then verify the service starts automatically, the policy is restored, and — if acknowledged — the desktop reappears minimized and resumes snapshots.</li>
           <li>Enter an incorrect PIN five times and verify the temporary lockout.</li>
           <li>Use the Uninstall PIN flow only on a disposable test machine.</li>
         </ol>
@@ -271,19 +565,49 @@ Get-WinEvent -FilterHashtable @{ LogName = "Application"; StartTime = (Get-Date)
       </section>
 
       <section id="remote">
-        <h2>Remote Management Boundary</h2>
-        <p><span class="tag off">NOT ENABLED FOR DEPLOYMENT</span></p>
-        <p>The corrected release operates locally. It does not include a cloud credential and should not be configured with direct database access from every PC.</p>
+        <h2>Remote Management — Supabase Connected</h2>
+        <p><span class="tag">ENABLED — Host aws-1-ap-south-1.pooler.supabase.com:5432</span></p>
+        <p>This release connects to Supabase project <code>oyfczmpvmtwfynvloqkg</code> (<code>https://oyfczmpvmtwfynvloqkg.supabase.co</code>, bucket <code>Snapshots</code>). The service reads the DB connection string from install-time env/file only, and uploads snapshots with the public anon key under an INSERT-only Storage policy. The <code>service_role</code> key is admin-only (dashboard PC) and is never shipped.</p>
+        <div class="callout">
+          <strong>How to connect with database credentials:</strong><br>
+          <strong>Supabase Dashboard:</strong> SQL Editor > paste queries below.<br>
+          <strong>psql / any Postgres client:</strong><br>
+          <code>psql "Host=aws-1-ap-south-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.oyfczmpvmtwfynvloqkg;Password=[REDACTED];Ssl Mode=Require"</code><br>
+          or URI: <code>postgresql://postgres.oyfczmpvmtwfynvloqkg:[REDACTED]@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true</code> (Transaction) / <code>:5432</code> (Session).<br>
+          <strong>Storage API (endpoints):</strong> <code>https://oyfczmpvmtwfynvloqkg.supabase.co/storage/v1/object/Snapshots/...</code> with header <code>apikey: &lt;anon key&gt;</code> + <code>Authorization: Bearer &lt;anon key&gt;</code> — upload-only by policy (list/download/delete denied). Admin reads use the <code>service_role</code> key from the dashboard PC only.
+        </div>
         <table>
-          <thead><tr><th>Requested capability</th><th>Release status</th><th>Production-safe direction</th></tr></thead>
+          <thead><tr><th>Capability</th><th>Status</th><th>How to use (with DB credentials)</th></tr></thead>
           <tbody>
-            <tr><td>Remote policies and activity dashboard</td><td>Not enabled</td><td>Authenticated HTTPS management API with per-device enrollment and least-privilege tokens.</td></tr>
-            <tr><td>Website or VPN blocking</td><td>Not a reliable security control in this release</td><td>Windows Defender Firewall, WDAC/AppLocker, DNS security, and centrally managed policy.</td></tr>
-            <tr><td>Email sending restrictions</td><td>Not implemented as a mail-security control</td><td>Microsoft 365, Google Workspace, or a DLP/mail gateway policy.</td></tr>
-            <tr><td>Remote Windows-password changes</td><td>Disabled</td><td>Active Directory or Entra identity workflow. Never store raw passwords in an endpoint database.</td></tr>
-            <tr><td>Silent updates to one or many PCs</td><td>Disabled</td><td>Signed MSI/MSIX, authenticated release manifest, rollback plan, and staged deployment ring.</td></tr>
+            <tr><td>Remote policies and activity dashboard</td><td>Enabled</td><td><code>SELECT * FROM registered_devices</code>, <code>SELECT * FROM activity_logs ORDER BY id DESC LIMIT 50</code>, <code>SELECT * FROM device_policies WHERE email_id='user@company.com'</code> — also visible in Dashboard app (reads <code>Snapshots</code> bucket + <code>registered_devices</code>).</td></tr>
+            <tr><td>Website / VPN / snapshot policy</td><td>Enabled via <code>device_policies</code></td><td><code>UPDATE device_policies SET web_filter_mode='ALLOW', allowed_websites='example.com', vpn_filter_mode='OFF', snapshot_enabled=true, snapshot_interval_minutes=10 WHERE email_id='...'</code> — picked up in <code>30s</code> by <code>SupabaseSyncWorker.cs:94</code>. Still harden with Defender Firewall/WDAC for real enforcement.</td></tr>
+            <tr><td>Remote Windows-password changes</td><td>Enabled</td><td><code>INSERT INTO windows_password_commands (email_id,machine_name,target_username,new_password) VALUES ('...','LAPTOP-...','localuser','NewPass123')</code> — executed by <code>SupabaseSyncWorker.cs:119</code> + <code>WindowsAccountManager</code>, status → <code>COMPLETED/FAILED</code>.</td></tr>
+            <tr><td>Silent updates to one/many PCs</td><td>Enabled</td><td><code>INSERT INTO software_updates (version,download_url,sha256_hash,mandatory,target_machine) VALUES ('1.0.1','https://.../update.zip','abc...',true,'ALL')</code> — polled by <code>SoftwareUpdateWorker.cs</code>, respects <code>mandatory</code>/<code>target_machine</code>.</td></tr>
+            <tr><td>Remote commands (PIN/Uninstall)</td><td>Enabled</td><td><code>INSERT INTO remote_commands (email_id,machine_name,command,payload) VALUES ('...','...','UPDATE_DEVICE_PIN','123456')</code> / <code>UNINSTALL</code> — handled by <code>SupabaseSyncWorker.cs:159</code>. See PIN table below.</td></tr>
+            <tr><td>Hide / unhide folders</td><td>Enabled (service 1.0.3+)</td><td><code>...,'HIDE_FOLDER','C:\Program Files\SecureDeviceControl'</code> / <code>UNHIDE_FOLDER</code> — sets Hidden+System, service keeps running, reversible.</td></tr>
           </tbody>
         </table>
+        <h3>Change either PIN remotely (no target access)</h3>
+        <p>Yes — both the port-blocking PIN (Device Unlock) and the Uninstall PIN can be changed from Supabase. The target polls <code>remote_commands</code> every 30 seconds (<code>SupabaseSyncWorker.cs:159</code>) matched on <code>email_id + machine_name</code>, validates the payload is a six-digit PIN, re-hashes it locally, and marks the row <code>COMPLETED</code> (or <code>FAILED</code> with a reason).</p>
+        <pre><code>-- Port-blocking PIN (Device Unlock) — command is UPDATE_DEVICE_PIN (alias UPDATE_UNLOCK_PIN):
+INSERT INTO remote_commands (email_id, machine_name, command, payload)
+VALUES ('new-employee@company.com', 'NEWPC-NAME', 'UPDATE_DEVICE_PIN', '482917');
+
+-- Uninstall PIN:
+INSERT INTO remote_commands (email_id, machine_name, command, payload)
+VALUES ('new-employee@company.com', 'NEWPC-NAME', 'UPDATE_UNINSTALL_PIN', '730451');
+
+-- Confirm (within ~30 s, sooner after Restart-Service on the target):
+SELECT id, command, status, error_message, executed_at
+FROM remote_commands
+WHERE email_id = 'new-employee@company.com'
+ORDER BY id DESC LIMIT 3;</code></pre>
+        <ul>
+          <li><strong>Rules:</strong> payload must be exactly six digits and different from the other PIN; otherwise the row goes <code>FAILED — Invalid PIN payload</code> and nothing changes.</li>
+          <li><strong>Verify:</strong> <code>status=COMPLETED</code> plus a local <code>[REMOTE CMD] Remote Device Unlock/Uninstall PIN update applied.</code> activity entry. The old PIN stops working immediately.</li>
+          <li><strong>Stuck at PENDING?</strong> the PC is offline, on service &lt; 1.0.0, or the <code>email_id/machine_name</code> does not match its registration — see #support.</li>
+        </ul>
+        <div class="callout warn"><strong>Security:</strong> <code>service_role</code> bypasses RLS — keep <code>appsettings.json</code> ACL <code>SYSTEM+Administrators</code> only (<code>install-service.ps1:22</code>). This ZIP ships pre-configured for the 50-PC rollout, so keep the ZIP itself private; rotate keys in Supabase Dashboard if leaked and rebuild.</div>
       </section>
 
       <section id="support">
@@ -294,7 +618,13 @@ Get-WinEvent -FilterHashtable @{ LogName = "Application"; StartTime = (Get-Date)
             <tr><td>"Service is starting" for more than a minute</td><td>Old build behavior hid the real service error.</td><td>Install the corrected package and run the repair command above if Event Viewer mentions SQLite Error 14.</td></tr>
             <tr><td>"Access denied" from desktop</td><td>Service IPC or installation is unavailable.</td><td>Use an administrator account to run the installer, then query <code>SecureDeviceControl</code>.</td></tr>
             <tr><td>Two service names appear</td><td>A legacy install is present.</td><td>Run installer with <code>-MigrateLegacyService</code>.</td></tr>
+            <tr><td><em>Unable to remove service 'Secure Device Control'</em> during install</td><td>The old service entry resists deletion (SCM busy, hardened permissions, or a pending deletion).</td><td>1.0.5+ retries automatically, resets the service DACL, and prints the real <code>sc.exe</code> error. If it still fails: close <code>services.msc</code>, run <code>sc.exe delete "Secure Device Control"</code> to see the exact error, then re-run the installer. <code>FAILED 1072 / marked for deletion</code> just needs one reboot.</td></tr>
             <tr><td>USB policy does not change</td><td>The service may not be running or group policy may override the registry.</td><td>Check service status and Windows Event Viewer; validate on a test PC before broad deployment.</td></tr>
+            <tr><td>No <code>SnapshotUploaded</code> appears</td><td>Monitoring not acknowledged, desktop closed, or rate-limited.</td><td>Verify the registration checkbox was ticked (<code>snapshot_monitoring_acknowledged=true</code>), the desktop is still running (check <code>HKCU\…\Run</code> and Task Manager), and at least <code>snapshot_interval_minutes</code> (default 5) has elapsed since the last upload. <em>Load logs</em> shows the exact rejection reason.</td></tr>
+            <tr><td>Dashboard shows no snapshots for a device</td><td>Wrong Supabase key/URL, PC-name folder mismatch, or bucket permissions.</td><td>Re-enter the <code>service_role</code> key in dashboard <em>Settings</em> (DPAPI-protected), verify <code>registered_devices</code> contains the PC's <code>email_id/machine_name</code>, and confirm bucket <code>Snapshots</code> lists keys like <code>OFFICE-PC-01/2026/08/17/…jpg</code>. Run <code>Dashboard.exe --selftest</code> to verify parsing.</td></tr>
+            <tr><td>Snapshot JPEG rejected as <code>BadRequest</code></td><td>Image not JPEG or &gt;8 MB.</td><td>The desktop always sends JPEG (quality 70, ≤1920 px). If you call the IPC directly, ensure <code>FF D8 … FF D9</code> magic and size &lt; 8 MB.</td></tr>
+            <tr><td>Remote PIN command stuck at <code>PENDING</code></td><td>Target offline, wrong identity, or old service.</td><td>Check the PC is on and service <code>RUNNING</code>; verify <code>email_id</code> is lowercase-trimmed and <code>machine_name</code> matches <code>registered_devices</code> exactly; service must be 1.0.0+. <code>FAILED</code> with <em>Invalid PIN payload</em> means payload was not six digits.</td></tr>
+            <tr><td><em>already registered to PC</em> at registration</td><td>Email reused from another PC.</td><td>One Email = one PC (enforced). Use a fresh Email ID for every new PC.</td></tr>
           </tbody>
         </table>
       </section>

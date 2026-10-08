@@ -1,0 +1,304 @@
+:root {
+  --paper: #e6d7c3;
+  --paper-deep: #d8c4a8;
+  --ink: #140e0a;
+  --ink-soft: #3a2d24;
+  --signal: #ff2a00;
+  --line: 3px solid #140e0a;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.eyebrow {
+  margin: 0 0 0.4rem;
+  font-family: "Arial Black", Impact, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.mast {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 1.4rem 4vw 1.6rem;
+  border-bottom: 8px solid var(--signal);
+}
+
+.mast-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 2rem;
+  align-items: end;
+}
+
+h1 {
+  margin: 0;
+  font-family: "Arial Black", Impact, sans-serif;
+  font-size: clamp(4.2rem, 9vw, 8rem);
+  line-height: 0.82;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+
+.mast-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 0.4rem;
+}
+
+.mast-meta p {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.35;
+}
+
+.stamp {
+  appearance: none;
+  border: var(--line);
+  background: var(--signal);
+  color: #fff8f2;
+  font-family: "Arial Black", Impact, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.85rem 1.1rem;
+  cursor: pointer;
+}
+
+.stamp:hover { transform: translate(-3px, -3px); box-shadow: 6px 6px 0 var(--ink); }
+.stamp:focus-visible { outline: 4px solid var(--paper); outline-offset: 3px; }
+.stamp.ghost { background: var(--paper); color: var(--ink); }
+.stamp.danger { background: var(--signal); }
+
+.gate {
+  min-height: calc(100vh - 18rem);
+  display: grid;
+  place-items: center;
+  padding: 4rem 4vw;
+  background:
+    linear-gradient(135deg, transparent 48%, var(--ink) 48%, var(--ink) 52%, transparent 52%),
+    var(--paper);
+}
+
+.gate-card {
+  width: min(640px, 100%);
+  background: var(--paper);
+  border: var(--line);
+  padding: 2rem;
+  box-shadow: 16px 16px 0 var(--ink);
+}
+
+.gate-card h2 {
+  margin: 0 0 1.2rem;
+  font-family: "Arial Black", Impact, sans-serif;
+  font-size: clamp(3rem, 6vw, 4.6rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+
+label, .search span {
+  display: block;
+  font-family: "Arial Black", Impact, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+input {
+  width: 100%;
+  border: var(--line);
+  background: #fffaf3;
+  color: var(--ink);
+  font: 1.4rem Georgia, serif;
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 1rem;
+}
+
+input:focus { outline: 4px solid var(--signal); }
+
+.error { min-height: 1.4rem; color: var(--signal); font-family: "Arial Black", Impact, sans-serif; letter-spacing: 0.04em; }
+
+.floor {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 60vh;
+}
+
+.index {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 1.4rem 1rem 2rem;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  min-height: 100%;
+}
+
+.device-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--paper);
+  border: 0;
+  border-top: 1px solid rgba(230, 215, 195, 0.35);
+  padding: 0.9rem 0.2rem;
+  font-family: "Arial Black", Impact, sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.device-link small {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: Georgia, serif;
+  font-weight: normal;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--paper-deep);
+}
+
+.device-link[aria-current="true"] { color: var(--signal); }
+
+.sheets { padding: 1.4rem 4vw 4rem; }
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  align-items: end;
+  margin-bottom: 1.5rem;
+}
+
+.search { width: min(420px, 100%); }
+.status { margin: 0; font-size: 1.15rem; }
+
+.day {
+  margin: 0 0 2.4rem;
+  border-top: var(--line);
+  padding-top: 0.8rem;
+}
+
+.day-toggle {
+  width: 100%;
+  text-align: left;
+  margin: 0 0 1rem;
+  background: transparent;
+  border: 0;
+  border-bottom: var(--line);
+  padding: 0.4rem 0 0.7rem;
+  font-family: "Arial Black", Impact, sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.6rem);
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.day-toggle:hover { color: var(--signal); }
+.day-toggle:focus-visible { outline: 4px solid var(--signal); }
+
+.more { margin-top: 0.4rem; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.shot {
+  background: var(--paper-deep);
+  border: var(--line);
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.shot img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--ink);
+}
+
+.shot span {
+  display: block;
+  padding: 0.55rem 0.7rem 0.7rem;
+  font-family: "Arial Black", Impact, sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.shot:hover { outline: 4px solid var(--signal); }
+.shot:focus-visible { outline: 4px solid var(--signal); }
+
+dialog {
+  width: min(1100px, calc(100vw - 2rem));
+  border: var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 0;
+  box-shadow: 18px 18px 0 var(--ink);
+}
+
+dialog::backdrop { background: rgba(20, 14, 10, 0.72); }
+
+.viewer-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+  padding: 1rem;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.viewer-bar h3 {
+  margin: 0;
+  font-family: "Arial Black", Impact, sans-serif;
+  font-size: 1.8rem;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.viewer-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+#viewer-image {
+  display: block;
+  width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  background: #000;
+}
+
+.empty {
+  font-size: 1.8rem;
+  border: var(--line);
+  padding: 2rem;
+  background: var(--paper-deep);
+}
+
+@media (max-width: 860px) {
+  .mast-row, .floor, .toolbar, .viewer-bar { display: block; }
+  .index { position: static; }
+  .device-link { font-size: 1rem; }
+  h1 { font-size: 3.4rem; }
+}

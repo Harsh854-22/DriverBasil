@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using SecureDeviceControl.Infrastructure.Paths;
@@ -18,7 +19,7 @@ public sealed class SoftwareUpdater : ISoftwareUpdater
     {
         this.paths = paths;
         this.logger = logger;
-        this.httpClient = customHttpClient ?? new HttpClient();
+        this.httpClient = customHttpClient ?? new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
     }
 
     public async Task<bool> ApplyUpdateAsync(
@@ -34,7 +35,8 @@ public sealed class SoftwareUpdater : ISoftwareUpdater
         var updatesDir = Path.Combine(paths.BaseDirectory, "updates");
         Directory.CreateDirectory(updatesDir);
 
-        var tempFilePath = Path.Combine(updatesDir, $"update_{updateModel.Version}_{Guid.NewGuid():N}.exe");
+        var isZip = updateModel.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+        var tempFilePath = Path.Combine(updatesDir, $"update_{updateModel.Version}_{Guid.NewGuid():N}{(isZip ? ".zip" : ".exe")}");
 
         try
         {
@@ -57,7 +59,37 @@ public sealed class SoftwareUpdater : ISoftwareUpdater
                 return false;
             }
 
-            logger.LogInformation("SHA-256 checksum verified successfully for v{Version}. Launching silent installer...", updateModel.Version);
+            logger.LogInformation("SHA-256 checksum verified successfully for v{Version}. Applying update...", updateModel.Version);
+
+            if (isZip)
+            {
+                var extractDir = Path.Combine(updatesDir, $"extract_{updateModel.Version}_{Guid.NewGuid():N}");
+                ZipFile.ExtractToDirectory(tempFilePath, extractDir);
+                var installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "SecureDeviceControl");
+                var hiddenFolder = HiddenInstallCopy.CaptureDirectoryVisibility(installDir);
+                Directory.CreateDirectory(installDir);
+                foreach (var file in Directory.GetFiles(extractDir, "*", SearchOption.AllDirectories))
+                {
+                    var relative = Path.GetRelativePath(extractDir, file);
+                    var dest = Path.Combine(installDir, relative);
+                    HiddenInstallCopy.CopyOverwritingHidden(file, dest);
+                }
+                HiddenInstallCopy.RestoreDirectoryVisibility(installDir, hiddenFolder);
+                try { File.Delete(tempFilePath); } catch { }
+                try { Directory.Delete(extractDir, true); } catch { }
+                logger.LogInformation(
+                    "ZIP update v{Version} extracted to {Dir} (hidden folder preserved={Hidden}). Restarting service...",
+                    updateModel.Version,
+                    installDir,
+                    hiddenFolder != 0);
+                if (OperatingSystem.IsWindows())
+                {
+                    try { Process.Start(new ProcessStartInfo { FileName = "sc.exe", Arguments = "stop SecureDeviceControl", CreateNoWindow = true }); } catch { }
+                    await Task.Delay(3000, cancellationToken);
+                    try { Process.Start(new ProcessStartInfo { FileName = "sc.exe", Arguments = "start SecureDeviceControl", CreateNoWindow = true }); } catch { }
+                }
+                return true;
+            }
 
             if (OperatingSystem.IsWindows())
             {

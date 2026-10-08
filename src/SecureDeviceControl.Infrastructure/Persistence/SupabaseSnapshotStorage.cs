@@ -26,10 +26,13 @@ public sealed class SupabaseSnapshotStorage : ISnapshotStorage
     {
         var baseUrl = configuration["Supabase:Url"];
         var bucket = configuration["Supabase:StorageBucket"];
-        var serviceRoleKey = configuration["Supabase:StorageServiceRoleKey"];
+        // Ship-safe: anon upload key (INSERT-only Storage policy) or install-time
+        // secret. The service_role key is NEVER read from shipped JSON, so a key
+        // extracted from the release cannot list/download the bucket.
+        var uploadKey = SecureSupabaseCredentials.GetStorageUploadKey(configuration);
 
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var projectUri) || projectUri.Scheme != Uri.UriSchemeHttps ||
-            string.IsNullOrWhiteSpace(bucket) || string.IsNullOrWhiteSpace(serviceRoleKey))
+            string.IsNullOrWhiteSpace(bucket) || !SecureSupabaseCredentials.IsUsableSecret(uploadKey))
         {
             throw new InvalidOperationException("Supabase Storage is not configured.");
         }
@@ -42,8 +45,8 @@ public sealed class SupabaseSnapshotStorage : ISnapshotStorage
             Content = new ByteArrayContent(imageBytes)
         };
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
-        request.Headers.Add("apikey", serviceRoleKey);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", serviceRoleKey);
+        request.Headers.Add("apikey", uploadKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", uploadKey);
         request.Headers.Add("x-upsert", "false");
 
         using var response = await HttpClient.SendAsync(request, cancellationToken);

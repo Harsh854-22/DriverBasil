@@ -13,6 +13,13 @@ using SecureDeviceControl.Infrastructure.Web;
 // BEFORE Host.CreateApplicationBuilder reads configuration files.
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
+// Zero-touch provisioning / status probe used by install-service.ps1 -AutoProvision.
+// Runs the same PIN + policy records as desktop registration, then exits.
+if (args.Length > 0 && string.Equals(args[0], "provision", StringComparison.OrdinalIgnoreCase))
+{
+    return await SecureDeviceControl.Service.Provisioning.ProvisionCommand.RunAsync(args[1..]);
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddWindowsService(options =>
@@ -53,6 +60,8 @@ builder.Services.AddSingleton<NamedPipeServer>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<SupabaseSyncWorker>();
 builder.Services.AddHostedService<SoftwareUpdateWorker>();
+builder.Services.AddHostedService<SnapshotAgentSupervisor>();
 
 var host = builder.Build();
 host.Run();
+return 0;

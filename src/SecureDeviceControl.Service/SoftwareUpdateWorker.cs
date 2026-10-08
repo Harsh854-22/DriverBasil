@@ -7,7 +7,7 @@ namespace SecureDeviceControl.Service;
 
 public sealed class SoftwareUpdateWorker : BackgroundService
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromHours(1);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(15);
 
     private readonly DeviceControlDatabase localDatabase;
     private readonly ICloudRepository cloudRepository;
@@ -71,10 +71,12 @@ public sealed class SoftwareUpdateWorker : BackgroundService
             return;
         }
 
-        if (remoteVersion > currentVersion)
+        var desktopExe = Path.Combine(AppContext.BaseDirectory, "SecureDeviceControl.Desktop.exe");
+        var toolsBroken = !File.Exists(desktopExe);
+        if (remoteVersion > currentVersion || (toolsBroken && remoteVersion >= currentVersion))
         {
-            logger.LogInformation("New software update release available: v{RemoteVersion} (Current: v{CurrentVersion}). Target: {Target}",
-                remoteVersion, currentVersion, latestRelease.TargetMachine);
+            logger.LogInformation("New software update release available: v{RemoteVersion} (Current: v{CurrentVersion}). Target: {Target}. ToolsBroken={ToolsBroken}",
+                remoteVersion, currentVersion, latestRelease.TargetMachine, toolsBroken);
 
             var success = await softwareUpdater.ApplyUpdateAsync(latestRelease, cancellationToken);
             if (success)

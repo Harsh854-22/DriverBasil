@@ -9,5 +9,5 @@ public sealed record CloudDevicePolicy(
     string EmailFilterMode,
     string AllowedEmailDomains,
     string VpnFilterMode = "OFF",
-    bool SnapshotEnabled = true,
+    bool SnapshotEnabled = false,
     int SnapshotIntervalMinutes = 5);
