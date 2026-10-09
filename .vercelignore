@@ -1,0 +1,10 @@
+.git
+**/.git
+**/bin
+**/obj
+**/*.zip
+publish
+SecureDeviceControl-Release
+temp-package
+.dotnet-home
+.nuget
