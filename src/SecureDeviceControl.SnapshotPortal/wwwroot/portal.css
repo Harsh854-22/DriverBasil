@@ -186,7 +186,13 @@ input:focus { outline: 4px solid var(--signal); }
   gap: 1.5rem;
   align-items: end;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
+
+.meter { width: min(460px, 100%); }
+.meter p { margin: 0 0 0.45rem; font-size: 1.35rem; }
+.meter-track { height: 22px; background: var(--ink); border: var(--line); }
+.meter-fill { height: 100%; width: 0; background: var(--signal); }
 
 .search { width: min(420px, 100%); }
 .status { margin: 0; font-size: 1.15rem; }

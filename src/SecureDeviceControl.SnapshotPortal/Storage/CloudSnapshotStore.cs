@@ -28,7 +28,33 @@ public sealed class CloudSnapshotStore : IDisposable
         }
     }
 
+    public const long QuotaBytes = 5_000_000_000;
+
     public bool IsConfigured => configured;
+
+    public async Task<BucketUsage> GetUsageAsync(CancellationToken cancellationToken)
+    {
+        if (!configured)
+        {
+            throw new InvalidOperationException("Cloud storage is not configured on this PC.");
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "rest/v1/rpc/snapshot_bucket_bytes")
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/json")
+        };
+
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return new BucketUsage(null, QuotaBytes, false);
+        }
+
+        var text = (await response.Content.ReadAsStringAsync(cancellationToken)).Trim().Trim('"');
+        return long.TryParse(text, out var used)
+            ? new BucketUsage(used, QuotaBytes, true)
+            : new BucketUsage(null, QuotaBytes, false);
+    }
 
     public async Task<IReadOnlyList<SnapshotFrame>> ListFramesAsync(CancellationToken cancellationToken)
     {
@@ -166,3 +192,5 @@ public sealed class CloudSnapshotStore : IDisposable
         public string? Id { get; set; }
     }
 }
+
+public sealed record BucketUsage(long? UsedBytes, long QuotaBytes, bool Exact);

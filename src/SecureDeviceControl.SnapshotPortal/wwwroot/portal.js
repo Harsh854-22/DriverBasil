@@ -6,6 +6,9 @@ const loginError = document.querySelector("#login-error");
 const deviceIndex = document.querySelector("#device-index");
 const days = document.querySelector("#days");
 const statusLine = document.querySelector("#status");
+const meter = document.querySelector("#meter");
+const meterText = document.querySelector("#meter-text");
+const meterFill = document.querySelector("#meter-fill");
 const filter = document.querySelector("#filter");
 const viewer = document.querySelector("#viewer");
 const viewerImage = document.querySelector("#viewer-image");
@@ -108,7 +111,29 @@ async function showFloor() {
   gate.hidden = true;
   floor.hidden = false;
   logoutButton.hidden = false;
-  await loadLibrary();
+  await Promise.all([loadLibrary(), loadStorage()]);
+}
+
+async function loadStorage() {
+  const response = await fetch("/api/storage", { credentials: "same-origin" });
+  const payload = await response.json();
+  meter.hidden = false;
+  if (!response.ok || !payload.exact || payload.usedBytes == null) {
+    meterText.textContent = "Space left appears after the usage SQL is run in Supabase.";
+    meterFill.style.width = "0%";
+    return;
+  }
+  const used = Number(payload.usedBytes);
+  const quota = Number(payload.quotaBytes);
+  const left = Math.max(0, quota - used);
+  const percent = quota > 0 ? Math.min(100, (used / quota) * 100) : 100;
+  meterText.textContent = `${formatBytes(used)} used · ${formatBytes(left)} left · ${formatBytes(quota)} plan`;
+  meterFill.style.width = `${percent}%`;
+}
+
+function formatBytes(bytes) {
+  const gb = bytes / 1_000_000_000;
+  return `${gb.toFixed(2)} GB`;
 }
 
 async function loadLibrary() {

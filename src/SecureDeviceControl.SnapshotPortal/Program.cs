@@ -7,8 +7,17 @@ using SecureDeviceControl.SnapshotPortal.Storage;
 const string SessionCookieName = "__Host-sdc_session";
 
 var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+var onPlatform = int.TryParse(Environment.GetEnvironmentVariable("PORT"), out var platformPort);
+var configuredSessionSecret = Environment.GetEnvironmentVariable("PORTAL_SESSION_SECRET");
+if (onPlatform && (string.IsNullOrWhiteSpace(configuredSessionSecret) || configuredSessionSecret.Length < 32))
+{
+    throw new InvalidOperationException("Set PORTAL_SESSION_SECRET to a random string of at least 32 characters.");
+}
 
-var sessions = new SessionStore();
+var sessionKey = string.IsNullOrWhiteSpace(configuredSessionSecret)
+    ? RandomNumberGenerator.GetBytes(32)
+    : Encoding.UTF8.GetBytes(configuredSessionSecret);
+var sessions = new SessionStore(sessionKey);
 var throttle = new LoginThrottle();
 var loginGate = new SemaphoreSlim(2);
 var secrets = LocalDashboardSecrets.Load();
@@ -19,7 +28,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseKestrel(options =>
 {
     options.AddServerHeader = false;
-    options.ListenLocalhost(7443, listen => listen.UseHttps());
+    if (onPlatform)
+    {
+        options.ListenAnyIP(platformPort);
+    }
+    else
+    {
+        options.ListenLocalhost(7443, listen => listen.UseHttps());
+    }
 });
 
 var app = builder.Build();
@@ -49,10 +65,7 @@ app.Use(async (context, next) =>
 {
     if (HttpMethods.IsPost(context.Request.Method) || HttpMethods.IsDelete(context.Request.Method))
     {
-        var origin = context.Request.Headers.Origin.ToString();
-        if (!string.IsNullOrEmpty(origin) &&
-            !origin.Equals("https://127.0.0.1:7443", StringComparison.OrdinalIgnoreCase) &&
-            !origin.Equals("https://localhost:7443", StringComparison.OrdinalIgnoreCase))
+        if (!OriginAllowed(context.Request))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
@@ -120,7 +133,6 @@ app.MapPost("/api/login", async (HttpContext context) =>
 
 app.MapPost("/api/logout", (HttpContext context) =>
 {
-    sessions.Revoke(ReadSessionId(context));
     context.Response.Cookies.Delete(SessionCookieName, CookieOptions());
     return Results.Json(new { ok = true });
 });
@@ -134,6 +146,34 @@ app.MapGet("/api/session", (HttpContext context) =>
     }
 
     return Results.Json(new { authenticated = true, csrf = session.CsrfToken, cloudReady = store.IsConfigured });
+});
+
+app.MapGet("/api/storage", async (HttpContext context, CancellationToken cancellationToken) =>
+{
+    if (CurrentSession(context) is null)
+    {
+        return Results.Json(new { error = "Sign in required." }, statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    if (!store.IsConfigured)
+    {
+        return Results.Json(new { error = "Cloud storage is not configured." }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    try
+    {
+        var usage = await store.GetUsageAsync(cancellationToken);
+        return Results.Json(new
+        {
+            usedBytes = usage.UsedBytes,
+            quotaBytes = usage.QuotaBytes,
+            exact = usage.Exact
+        });
+    }
+    catch (Exception)
+    {
+        return Results.Json(new { error = "Bucket size could not be read." }, statusCode: StatusCodes.Status502BadGateway);
+    }
 });
 
 app.MapGet("/api/library", async (HttpContext context, CancellationToken cancellationToken) =>
@@ -266,10 +306,37 @@ static bool FixedEqual(string left, string right)
     return a.Length == b.Length && CryptographicOperations.FixedTimeEquals(a, b);
 }
 
+static bool OriginAllowed(HttpRequest request)
+{
+    var origin = request.Headers.Origin.ToString();
+    if (string.IsNullOrEmpty(origin))
+    {
+        return true;
+    }
+
+    if (!Uri.TryCreate(origin, UriKind.Absolute, out var originUri))
+    {
+        return false;
+    }
+
+    var forwarded = request.Headers["X-Forwarded-Host"].ToString();
+    var host = string.IsNullOrWhiteSpace(forwarded)
+        ? request.Host.Host
+        : forwarded.Split(',')[0].Trim().Split(':')[0];
+    return originUri.Host.Equals(host, StringComparison.OrdinalIgnoreCase) ||
+           originUri.Host.Equals(request.Host.Host, StringComparison.OrdinalIgnoreCase);
+}
+
 static PortalSession? CurrentSession(HttpContext context)
 {
     var holder = context.Items["sessions"] as SessionStore;
-    return holder?.Find(ReadSessionId(context), context.Request.Headers.UserAgent.ToString());
+    var session = holder?.Find(ReadSessionId(context), context.Request.Headers.UserAgent.ToString());
+    if (holder is not null && session is not null)
+    {
+        AppendSessionCookie(context, holder.Renew(session));
+    }
+
+    return session;
 }
 
 static string? ReadSessionId(HttpContext context)

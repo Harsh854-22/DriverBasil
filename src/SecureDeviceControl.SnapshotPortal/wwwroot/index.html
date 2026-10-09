@@ -43,6 +43,11 @@
           <span>Find a machine</span>
           <input id="filter" type="search" autocomplete="off" placeholder="Type a machine name">
         </label>
+        <div id="meter" class="meter" hidden>
+          <p class="eyebrow">Bucket</p>
+          <p id="meter-text"></p>
+          <div class="meter-track" aria-hidden="true"><div id="meter-fill" class="meter-fill"></div></div>
+        </div>
         <p id="status" class="status">Loading the bucket…</p>
       </div>
       <div id="days"></div>

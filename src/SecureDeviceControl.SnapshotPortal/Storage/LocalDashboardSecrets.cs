@@ -57,6 +57,11 @@ public sealed class LocalDashboardSecrets
             return null;
         }
 
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
         try
         {
             var protectedBytes = Convert.FromBase64String(encrypted);

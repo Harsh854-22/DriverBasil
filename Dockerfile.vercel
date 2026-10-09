@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY src/SecureDeviceControl.Shared/SecureDeviceControl.Shared.csproj src/SecureDeviceControl.Shared/
+COPY src/SecureDeviceControl.SnapshotPortal/SecureDeviceControl.SnapshotPortal.csproj src/SecureDeviceControl.SnapshotPortal/
+RUN dotnet restore src/SecureDeviceControl.SnapshotPortal/SecureDeviceControl.SnapshotPortal.csproj
+COPY src/SecureDeviceControl.Shared/ src/SecureDeviceControl.Shared/
+COPY src/SecureDeviceControl.SnapshotPortal/ src/SecureDeviceControl.SnapshotPortal/
+RUN dotnet publish src/SecureDeviceControl.SnapshotPortal/SecureDeviceControl.SnapshotPortal.csproj -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app/publish ./
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV PORT=8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "SecureDeviceControl.SnapshotPortal.dll"]

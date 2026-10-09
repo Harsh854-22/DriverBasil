@@ -60,6 +60,7 @@ public sealed class SessionStoreTests
 
         Assert.NotNull(store.Find(sessionId, "BrowserA"));
         Assert.Null(store.Find(sessionId, "BrowserB"));
+        Assert.Null(store.Find(sessionId + "tampered", "BrowserA"));
     }
 
     [Fact]

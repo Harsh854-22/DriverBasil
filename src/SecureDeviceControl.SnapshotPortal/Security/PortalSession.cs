@@ -17,11 +17,25 @@ public sealed class SessionStore
     public static readonly TimeSpan IdleLifetime = TimeSpan.FromMinutes(20);
     public static readonly TimeSpan AbsoluteLifetime = TimeSpan.FromHours(8);
 
-    private readonly ConcurrentDictionary<string, PortalSession> sessions = new();
+    private readonly byte[] key;
+
+    public SessionStore()
+        : this(RandomNumberGenerator.GetBytes(32))
+    {
+    }
+
+    public SessionStore(byte[] key)
+    {
+        if (key is null || key.Length < 32)
+        {
+            throw new ArgumentException("Session key must be at least 32 bytes.", nameof(key));
+        }
+
+        this.key = key;
+    }
 
     public (string SessionId, PortalSession Session) Issue(string userAgent)
     {
-        var sessionId = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         var session = new PortalSession
         {
             CsrfToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)),
@@ -30,18 +44,13 @@ public sealed class SessionStore
             LastSeenAt = DateTimeOffset.UtcNow
         };
 
-        sessions[Key(sessionId)] = session;
-        return (sessionId, session);
+        return (Seal(session), session);
     }
 
     public PortalSession? Find(string? sessionId, string userAgent)
     {
-        if (string.IsNullOrWhiteSpace(sessionId) || sessionId.Length != 64)
-        {
-            return null;
-        }
-
-        if (!sessions.TryGetValue(Key(sessionId), out var session))
+        var session = Open(sessionId);
+        if (session is null)
         {
             return null;
         }
@@ -49,15 +58,13 @@ public sealed class SessionStore
         var now = DateTimeOffset.UtcNow;
         if (now - session.CreatedAt > AbsoluteLifetime || now - session.LastSeenAt > IdleLifetime)
         {
-            sessions.TryRemove(Key(sessionId), out _);
             return null;
         }
 
-        if (!CryptographicOperations.FixedTimeEquals(
-                Convert.FromHexString(session.UserAgentHash),
-                Convert.FromHexString(Fingerprint(userAgent))))
+        var presented = Convert.FromHexString(Fingerprint(userAgent));
+        var bound = Convert.FromHexString(session.UserAgentHash);
+        if (presented.Length != bound.Length || !CryptographicOperations.FixedTimeEquals(presented, bound))
         {
-            sessions.TryRemove(Key(sessionId), out _);
             return null;
         }
 
@@ -65,13 +72,7 @@ public sealed class SessionStore
         return session;
     }
 
-    public void Revoke(string? sessionId)
-    {
-        if (!string.IsNullOrWhiteSpace(sessionId))
-        {
-            sessions.TryRemove(Key(sessionId), out _);
-        }
-    }
+    public string Renew(PortalSession session) => Seal(session);
 
     public static string Fingerprint(string userAgent)
     {
@@ -79,7 +80,78 @@ public sealed class SessionStore
         return Convert.ToHexString(SHA256.HashData(material));
     }
 
-    private static string Key(string sessionId) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sessionId)));
+    private string Seal(PortalSession session)
+    {
+        var payload = string.Join(
+            ".",
+            session.CreatedAt.ToUnixTimeSeconds().ToString(),
+            session.LastSeenAt.ToUnixTimeSeconds().ToString(),
+            session.CsrfToken,
+            session.UserAgentHash);
+        var payloadBytes = Encoding.UTF8.GetBytes(payload);
+        var signature = HMACSHA256.HashData(key, payloadBytes);
+        return Base64Url(payloadBytes) + "." + Base64Url(signature);
+    }
+
+    private PortalSession? Open(string? ticket)
+    {
+        if (string.IsNullOrWhiteSpace(ticket))
+        {
+            return null;
+        }
+
+        var parts = ticket.Split('.');
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+
+        byte[] payloadBytes;
+        byte[] signature;
+        try
+        {
+            payloadBytes = FromBase64Url(parts[0]);
+            signature = FromBase64Url(parts[1]);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+
+        var expected = HMACSHA256.HashData(key, payloadBytes);
+        if (expected.Length != signature.Length || !CryptographicOperations.FixedTimeEquals(expected, signature))
+        {
+            return null;
+        }
+
+        var payload = Encoding.UTF8.GetString(payloadBytes).Split('.');
+        if (payload.Length != 4 ||
+            !long.TryParse(payload[0], out var created) ||
+            !long.TryParse(payload[1], out var lastSeen) ||
+            payload[2].Length != 64 ||
+            payload[3].Length != 64)
+        {
+            return null;
+        }
+
+        return new PortalSession
+        {
+            CsrfToken = payload[2],
+            UserAgentHash = payload[3],
+            CreatedAt = DateTimeOffset.FromUnixTimeSeconds(created),
+            LastSeenAt = DateTimeOffset.FromUnixTimeSeconds(lastSeen)
+        };
+    }
+
+    private static string Base64Url(byte[] bytes) =>
+        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private static byte[] FromBase64Url(string value)
+    {
+        var padded = value.Replace('-', '+').Replace('_', '/');
+        padded = padded.PadRight(padded.Length + (4 - padded.Length % 4) % 4, '=');
+        return Convert.FromBase64String(padded);
+    }
 }
 
 public sealed class LoginThrottle
