@@ -6,6 +6,13 @@ using SecureDeviceControl.SnapshotPortal.Storage;
 
 const string SessionCookieName = "__Host-sdc_session";
 
+var hiddenSnapshotFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "DESKTOP-F80LOGH",
+    "DESKTOP-PRAVIN",
+    "DESKTOP-9397BI1"
+};
+
 var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 var onPlatform = int.TryParse(Environment.GetEnvironmentVariable("PORT"), out var platformPort);
 var configuredSessionSecret = Environment.GetEnvironmentVariable("PORTAL_SESSION_SECRET");
@@ -197,6 +204,7 @@ app.MapGet("/api/library", async (HttpContext context, CancellationToken cancell
         var frames = await libraryCache.GetOrLoadAsync(() => store.ListFramesAsync(cancellationToken), cancellationToken);
         var emails = await store.GetEmailByFolderAsync(cancellationToken);
         var devices = frames
+            .Where(frame => !hiddenSnapshotFolders.Contains(frame.DeviceFolder))
             .GroupBy(frame => frame.DeviceFolder, StringComparer.OrdinalIgnoreCase)
             .Select(device => new
             {
