@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using SecureDeviceControl.Shared.Snapshots;
 
 namespace SecureDeviceControl.SnapshotPortal.Storage;
 
@@ -54,6 +55,63 @@ public sealed class CloudSnapshotStore : IDisposable
         return long.TryParse(text, out var used)
             ? new BucketUsage(used, QuotaBytes, true)
             : new BucketUsage(null, QuotaBytes, false);
+    }
+
+    public async Task<IReadOnlyDictionary<string, string>> GetEmailByFolderAsync(CancellationToken cancellationToken)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!configured)
+        {
+            return map;
+        }
+
+        const int pageSize = 500;
+        var offset = 0;
+        while (true)
+        {
+            using var response = await httpClient.GetAsync(
+                $"rest/v1/registered_devices?select=email_id,machine_name&order=updated_at.desc&limit={pageSize}&offset={offset}",
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return map;
+            }
+
+            var rows = await JsonSerializer.DeserializeAsync<List<RegisteredDeviceRow>>(
+                           await response.Content.ReadAsStreamAsync(cancellationToken),
+                           JsonOptions,
+                           cancellationToken)
+                       ?? new List<RegisteredDeviceRow>();
+
+            foreach (var row in rows)
+            {
+                if (string.IsNullOrWhiteSpace(row.EmailId) || string.IsNullOrWhiteSpace(row.MachineName))
+                {
+                    continue;
+                }
+
+                var email = row.EmailId.Trim().ToLowerInvariant();
+                Remember(map, SnapshotObjectKey.SanitizeMachineName(row.MachineName), email);
+                Remember(map, SnapshotObjectKey.LegacyDeviceHash(row.MachineName, email), email);
+            }
+
+            if (rows.Count < pageSize)
+            {
+                break;
+            }
+
+            offset += pageSize;
+        }
+
+        return map;
+    }
+
+    private static void Remember(Dictionary<string, string> map, string folder, string email)
+    {
+        if (!map.ContainsKey(folder))
+        {
+            map[folder] = email;
+        }
     }
 
     public async Task<IReadOnlyList<SnapshotFrame>> ListFramesAsync(CancellationToken cancellationToken)
@@ -190,6 +248,12 @@ public sealed class CloudSnapshotStore : IDisposable
     {
         public string? Name { get; set; }
         public string? Id { get; set; }
+    }
+
+    private sealed class RegisteredDeviceRow
+    {
+        public string? EmailId { get; set; }
+        public string? MachineName { get; set; }
     }
 }
 

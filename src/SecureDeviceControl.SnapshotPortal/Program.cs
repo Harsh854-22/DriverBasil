@@ -195,12 +195,13 @@ app.MapGet("/api/library", async (HttpContext context, CancellationToken cancell
     try
     {
         var frames = await libraryCache.GetOrLoadAsync(() => store.ListFramesAsync(cancellationToken), cancellationToken);
+        var emails = await store.GetEmailByFolderAsync(cancellationToken);
         var devices = frames
             .GroupBy(frame => frame.DeviceFolder, StringComparer.OrdinalIgnoreCase)
-            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
             .Select(device => new
             {
                 folder = device.Key,
+                email = emails.TryGetValue(device.Key, out var registeredEmail) ? registeredEmail : "",
                 count = device.Count(),
                 days = device
                     .GroupBy(frame => frame.CapturedAtUtc.UtcDateTime.ToString("yyyy-MM-dd"))
@@ -214,7 +215,8 @@ app.MapGet("/api/library", async (HttpContext context, CancellationToken cancell
                             capturedAt = frame.CapturedAtUtc
                         })
                     })
-            });
+            })
+            .OrderBy(device => string.IsNullOrEmpty(device.email) ? device.folder : device.email, StringComparer.OrdinalIgnoreCase);
 
         return Results.Json(new { devices, total = frames.Count });
     }

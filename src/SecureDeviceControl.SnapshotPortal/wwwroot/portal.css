@@ -146,7 +146,9 @@ input:focus { outline: 4px solid var(--signal); }
 }
 
 .dash-bar h1 {
-  font-size: clamp(2.4rem, 5vw, 4.2rem);
+  font-size: clamp(1.6rem, 3.4vw, 2.8rem);
+  text-transform: none;
+  overflow-wrap: anywhere;
 }
 
 .hamburger {
@@ -243,9 +245,10 @@ select {
   border-top: 1px solid rgba(230, 215, 195, 0.35);
   padding: 0.9rem 0.2rem;
   font-family: "Arial Black", Impact, sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   letter-spacing: -0.02em;
-  text-transform: uppercase;
+  text-transform: none;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 

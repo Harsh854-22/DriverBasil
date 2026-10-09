@@ -147,7 +147,7 @@ function renderPcs() {
     if (device.folder === selectedFolder) {
       button.setAttribute("aria-current", "true");
     }
-    button.innerHTML = `${escapeHtml(device.folder)}<small>${device.count} snapshot${device.count === 1 ? "" : "s"}</small>`;
+    button.innerHTML = `${escapeHtml(deviceLabel(device))}<small>${device.count} snapshot${device.count === 1 ? "" : "s"}</small>`;
     button.addEventListener("click", () => selectPc(device.folder));
     pcList.append(button);
   }
@@ -175,7 +175,7 @@ function renderShots() {
     return;
   }
 
-  pcTitle.textContent = device.folder;
+  pcTitle.textContent = deviceLabel(device);
   const dates = device.days.map((day) => day.date);
   const current = dateFilter.value;
   dateFilter.replaceChildren(new Option("All dates", ""));
@@ -190,11 +190,16 @@ function renderShots() {
     .filter((shot) => !dateFilter.value || shot.capturedAt.slice(0, 10) === dateFilter.value)
     .sort((left, right) => right.capturedAt.localeCompare(left.capturedAt));
 
+  const label = deviceLabel(device);
   statusLine.textContent = frames.length === 0
-    ? `No snapshots for ${device.folder} on that date.`
-    : `${device.folder} · ${frames.length} snapshot${frames.length === 1 ? "" : "s"}, latest first.`;
+    ? `No snapshots for ${label} on that date.`
+    : `${label} · ${frames.length} snapshot${frames.length === 1 ? "" : "s"}, latest first.`;
 
-  paintFrames(device.folder, frames, 24);
+  paintFrames(label, frames, 24);
+}
+
+function deviceLabel(device) {
+  return device.email || device.folder;
 }
 
 function paintFrames(folder, frames, count) {
