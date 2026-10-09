@@ -10,64 +10,22 @@
 <body>
   <header class="mast">
     <p class="eyebrow">Basil Drug &amp; Pharma · Private ledger</p>
-    <div class="mast-row">
-      <h1>Snapshot<br>Ledger</h1>
-      <div class="mast-meta">
-        <p>Screen frames, filed by machine and day. Deleting a frame removes it from the cloud bucket.</p>
-        <button id="logout" class="stamp" type="button" hidden>Lock ledger</button>
-      </div>
-    </div>
+    <h1>Snapshot<br>Ledger</h1>
   </header>
 
-  <main id="gate" class="gate">
+  <main class="gate">
     <section class="gate-card">
       <p class="eyebrow">Restricted floor</p>
       <h2>Show the seal.</h2>
       <form id="login-form" method="post" action="/api/login" autocomplete="off">
         <label for="password">Passphrase</label>
         <input id="password" name="password" type="password" autocomplete="current-password" spellcheck="false" maxlength="128" required>
-        <button class="stamp" type="submit">Open the floor</button>
+        <button class="stamp" type="submit">Open the dashboard</button>
         <p id="login-error" class="error" role="alert"></p>
       </form>
     </section>
   </main>
 
-  <main id="floor" class="floor" hidden>
-    <aside class="index" aria-label="Machines">
-      <p class="eyebrow">Machines</p>
-      <div id="device-index"></div>
-    </aside>
-    <section class="sheets">
-      <div class="toolbar">
-        <label class="search">
-          <span>Find a machine</span>
-          <input id="filter" type="search" autocomplete="off" placeholder="Type a machine name">
-        </label>
-        <div id="meter" class="meter" hidden>
-          <p class="eyebrow">Bucket</p>
-          <p id="meter-text"></p>
-          <div class="meter-track" aria-hidden="true"><div id="meter-fill" class="meter-fill"></div></div>
-        </div>
-        <p id="status" class="status">Loading the bucket…</p>
-      </div>
-      <div id="days"></div>
-    </section>
-  </main>
-
-  <dialog id="viewer">
-    <form method="dialog" class="viewer-bar">
-      <div>
-        <p id="viewer-device" class="eyebrow"></p>
-        <h3 id="viewer-time"></h3>
-      </div>
-      <div class="viewer-actions">
-        <button id="delete-shot" class="stamp danger" type="button" value="delete">Delete from cloud</button>
-        <button class="stamp ghost" type="submit" value="close">Close</button>
-      </div>
-    </form>
-    <img id="viewer-image" alt="">
-  </dialog>
-
-  <script src="/portal.js"></script>
+  <script src="/login.js"></script>
 </body>
 </html>

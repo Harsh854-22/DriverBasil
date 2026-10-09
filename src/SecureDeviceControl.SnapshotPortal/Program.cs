@@ -79,6 +79,10 @@ app.MapGet("/", () => Results.File(
     Path.Combine(app.Environment.WebRootPath, "index.html"),
     "text/html; charset=utf-8"));
 
+app.MapGet("/dashboard", () => Results.File(
+    Path.Combine(app.Environment.WebRootPath, "dashboard.html"),
+    "text/html; charset=utf-8"));
+
 app.MapPost("/api/login", async (HttpContext context) =>
 {
     var clientKey = context.Connection.RemoteIpAddress?.ToString() ?? "local";

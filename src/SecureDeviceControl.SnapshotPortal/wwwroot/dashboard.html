@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Dashboard · Snapshot Ledger</title>
+  <link rel="stylesheet" href="/portal.css">
+</head>
+<body>
+  <header class="dash-bar">
+    <button id="menu-button" class="hamburger" type="button" aria-expanded="false" aria-controls="pc-drawer">
+      <span></span><span></span><span></span>
+      <span class="hamburger-label">PCs</span>
+    </button>
+    <div>
+      <p class="eyebrow">Dashboard</p>
+      <h1 id="pc-title">Choose a PC</h1>
+    </div>
+    <button id="logout" class="stamp ghost" type="button">Lock</button>
+  </header>
+
+  <div id="scrim" class="scrim" hidden></div>
+  <aside id="pc-drawer" class="drawer" hidden>
+    <p class="eyebrow">Computers</p>
+    <div id="pc-list"></div>
+  </aside>
+
+  <main class="board">
+    <div class="toolbar">
+      <label class="search">
+        <span>Date</span>
+        <select id="date-filter" disabled>
+          <option value="">All dates</option>
+        </select>
+      </label>
+      <div id="meter" class="meter">
+        <p class="eyebrow">Bucket</p>
+        <p id="meter-text">Reading space…</p>
+        <div class="meter-track" aria-hidden="true"><div id="meter-fill" class="meter-fill"></div></div>
+      </div>
+      <p id="status" class="status">Open the menu and pick a PC.</p>
+    </div>
+    <div id="shots"></div>
+  </main>
+
+  <dialog id="viewer">
+    <form method="dialog" class="viewer-bar">
+      <div>
+        <p id="viewer-device" class="eyebrow"></p>
+        <h3 id="viewer-time"></h3>
+      </div>
+      <div class="viewer-actions">
+        <button id="delete-shot" class="stamp danger" type="button">Delete from cloud</button>
+        <button class="stamp ghost" type="submit">Close</button>
+      </div>
+    </form>
+    <img id="viewer-image" alt="">
+  </dialog>
+
+  <script src="/dashboard.js"></script>
+</body>
+</html>
