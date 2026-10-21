@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -8,7 +9,9 @@ namespace SecureDeviceControl.SnapshotPortal.Storage;
 public sealed class CloudSnapshotStore : IDisposable
 {
     private const string Bucket = "Snapshots";
-    private const int PageSize = 100;
+    private const int PageSize = 1000;
+    private const int MaxFrames = 100_000;
+    private const int MaxConcurrentListings = 8;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly HttpClient httpClient;
@@ -121,15 +124,16 @@ public sealed class CloudSnapshotStore : IDisposable
             throw new InvalidOperationException("Cloud storage is not configured on this PC.");
         }
 
-        var keys = new List<string>();
-        await WalkAsync("", 0, keys, cancellationToken);
+        var keys = new ConcurrentBag<string>();
+        using var listingGate = new SemaphoreSlim(MaxConcurrentListings);
+        await WalkAsync("", 0, keys, listingGate, cancellationToken);
 
         return keys
             .Select(SnapshotCatalog.TryParse)
             .Where(frame => frame is not null)
             .Select(frame => frame!)
             .OrderByDescending(frame => frame.CapturedAtUtc)
-            .Take(2000)
+            .Take(MaxFrames)
             .ToList();
     }
 
@@ -165,7 +169,7 @@ public sealed class CloudSnapshotStore : IDisposable
 
         using var request = new HttpRequestMessage(HttpMethod.Delete, $"storage/v1/object/{Bucket}")
         {
-            Content = new StringContent(JsonSerializer.Serialize(new[] { objectKey }), Encoding.UTF8, "application/json")
+            Content = new StringContent(JsonSerializer.Serialize(new { prefixes = new[] { objectKey } }), Encoding.UTF8, "application/json")
         };
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
@@ -183,37 +187,64 @@ public sealed class CloudSnapshotStore : IDisposable
         }
     }
 
-    private async Task WalkAsync(string prefix, int depth, List<string> keys, CancellationToken cancellationToken)
+    public async Task<int> DeleteManyAsync(IReadOnlyList<string> objectKeys, CancellationToken cancellationToken)
     {
-        if (depth > 4 || keys.Count >= 2000)
+        var keys = objectKeys
+            .Where(key => SnapshotCatalog.TryParse(key) is not null)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (keys.Length == 0)
+        {
+            return 0;
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Delete, $"storage/v1/object/{Bucket}")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new { prefixes = keys }), Encoding.UTF8, "application/json")
+        };
+
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return keys.Length;
+        }
+
+        var deleted = 0;
+        foreach (var key in keys)
+        {
+            try
+            {
+                await DeleteAsync(key, cancellationToken);
+                deleted++;
+            }
+            catch
+            {
+                // Keep deleting the rest; the caller receives the success count.
+            }
+        }
+
+        return deleted;
+    }
+
+    private async Task WalkAsync(
+        string prefix,
+        int depth,
+        ConcurrentBag<string> keys,
+        SemaphoreSlim listingGate,
+        CancellationToken cancellationToken)
+    {
+        if (depth > 4)
         {
             return;
         }
 
+        var children = new List<string>();
         var offset = 0;
-        while (keys.Count < 2000)
+        while (true)
         {
-            var body = JsonSerializer.Serialize(new
-            {
-                prefix,
-                limit = PageSize,
-                offset,
-                sortBy = new { column = "name", order = "asc" }
-            });
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"storage/v1/object/list/{Bucket}")
-            {
-                Content = new StringContent(body, Encoding.UTF8, "application/json")
-            };
-
-            using var response = await httpClient.SendAsync(request, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            var entries = await JsonSerializer.DeserializeAsync<List<BucketEntry>>(
-                              await response.Content.ReadAsStreamAsync(cancellationToken),
-                              JsonOptions,
-                              cancellationToken)
-                          ?? new List<BucketEntry>();
+            var entries = await ListPageAsync(prefix, offset, listingGate, cancellationToken);
+            var isComplete = entries.Count < PageSize;
 
             foreach (var entry in entries)
             {
@@ -225,7 +256,7 @@ public sealed class CloudSnapshotStore : IDisposable
                 var child = prefix + entry.Name;
                 if (entry.Id is null)
                 {
-                    await WalkAsync(child + "/", depth + 1, keys, cancellationToken);
+                    children.Add(child + "/");
                 }
                 else if (entry.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
                 {
@@ -233,12 +264,51 @@ public sealed class CloudSnapshotStore : IDisposable
                 }
             }
 
-            if (entries.Count < PageSize)
+            if (isComplete)
             {
                 break;
             }
 
             offset += PageSize;
+        }
+
+        await Task.WhenAll(children.Select(child => WalkAsync(child, depth + 1, keys, listingGate, cancellationToken)));
+    }
+
+    private async Task<List<BucketEntry>> ListPageAsync(
+        string prefix,
+        int offset,
+        SemaphoreSlim listingGate,
+        CancellationToken cancellationToken)
+    {
+        await listingGate.WaitAsync(cancellationToken);
+        try
+        {
+            var body = JsonSerializer.Serialize(new
+            {
+                prefix,
+                limit = PageSize,
+                offset,
+                sortBy = new { column = "name", order = "desc" }
+            });
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"storage/v1/object/list/{Bucket}")
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            };
+
+            using var response = await httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            return await JsonSerializer.DeserializeAsync<List<BucketEntry>>(
+                       await response.Content.ReadAsStreamAsync(cancellationToken),
+                       JsonOptions,
+                       cancellationToken)
+                   ?? new List<BucketEntry>();
+        }
+        finally
+        {
+            listingGate.Release();
         }
     }
 

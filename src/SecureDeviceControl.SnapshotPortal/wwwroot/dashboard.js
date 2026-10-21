@@ -14,15 +14,28 @@ const viewerDevice = document.querySelector("#viewer-device");
 const viewerTime = document.querySelector("#viewer-time");
 const deleteButton = document.querySelector("#delete-shot");
 const logoutButton = document.querySelector("#logout");
+const selectionBar = document.querySelector("#selection-bar");
+const selectionCount = document.querySelector("#selection-count");
+const downloadSelectedButton = document.querySelector("#download-selected");
+const deleteSelectedButton = document.querySelector("#delete-selected");
+const clearSelectionButton = document.querySelector("#clear-selection");
 
 let csrf = "";
 let library = [];
 let selectedFolder = "";
 let activeKey = "";
+const selection = new Set();
+const maxSelection = 500;
 
 menuButton.addEventListener("click", () => setMenu(!drawer.hidden ? false : true));
 scrim.addEventListener("click", () => setMenu(false));
 dateFilter.addEventListener("change", renderShots);
+downloadSelectedButton.addEventListener("click", downloadSelected);
+deleteSelectedButton.addEventListener("click", deleteSelected);
+clearSelectionButton.addEventListener("click", () => {
+  selection.clear();
+  syncSelection();
+});
 logoutButton.addEventListener("click", async () => {
   await fetch("/api/logout", { method: "POST", credentials: "same-origin" });
   window.location.assign("/");
@@ -155,6 +168,7 @@ function renderPcs() {
 
 function selectPc(folder) {
   selectedFolder = folder;
+  selection.clear();
   dateFilter.value = "";
   setMenu(false);
   renderPcs();
@@ -208,9 +222,34 @@ function paintFrames(folder, frames, count) {
   const grid = document.createElement("div");
   grid.className = "grid";
   for (const shot of page) {
-    const card = document.createElement("button");
-    card.type = "button";
+    const card = document.createElement("div");
     card.className = "shot";
+    card.dataset.key = shot.key;
+    card.classList.toggle("selected", selection.has(shot.key));
+
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.className = "shot-check";
+    check.checked = selection.has(shot.key);
+    check.title = "Select this snapshot";
+    check.setAttribute("aria-label", `Select snapshot from ${formatDay(shot.capturedAt.slice(0, 10))} at ${formatTime(shot.capturedAt)}`);
+    check.addEventListener("change", () => {
+      if (check.checked) {
+        if (selection.size >= maxSelection) {
+          check.checked = false;
+          statusLine.textContent = `Select no more than ${maxSelection} snapshots at a time.`;
+          return;
+        }
+        selection.add(shot.key);
+      } else {
+        selection.delete(shot.key);
+      }
+      syncSelection();
+    });
+
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "shot-open";
     const image = document.createElement("img");
     image.alt = "";
     image.loading = "lazy";
@@ -218,8 +257,10 @@ function paintFrames(folder, frames, count) {
     image.src = `/api/media?key=${encodeURIComponent(shot.key)}`;
     const caption = document.createElement("span");
     caption.innerHTML = `<b>${escapeHtml(folder)}</b><br>${escapeHtml(formatDay(shot.capturedAt.slice(0, 10)))}<br>${escapeHtml(formatTime(shot.capturedAt))}`;
-    card.append(image, caption);
-    card.addEventListener("click", () => openShot(folder, shot));
+    open.append(image, caption);
+    open.addEventListener("click", () => openShot(folder, shot));
+
+    card.append(open, check);
     grid.append(card);
   }
   shots.append(grid);
@@ -232,6 +273,116 @@ function paintFrames(folder, frames, count) {
     more.addEventListener("click", () => paintFrames(folder, frames, count + 24));
     shots.append(more);
   }
+
+  syncSelection();
+}
+
+function syncSelection() {
+  for (const card of shots.querySelectorAll(".shot[data-key]")) {
+    const selected = selection.has(card.dataset.key);
+    card.classList.toggle("selected", selected);
+    const check = card.querySelector(".shot-check");
+    if (check) {
+      check.checked = selected;
+    }
+  }
+
+  selectionBar.hidden = selection.size === 0;
+  selectionCount.textContent = `${selection.size} selected`;
+  downloadSelectedButton.disabled = selection.size === 0;
+  deleteSelectedButton.disabled = selection.size === 0;
+}
+
+async function downloadSelected() {
+  if (selection.size === 0) {
+    return;
+  }
+
+  downloadSelectedButton.disabled = true;
+  statusLine.textContent = `Packing ${selection.size} snapshot${selection.size === 1 ? "" : "s"}…`;
+  try {
+    const response = await fetch("/api/snapshots/download-batch", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keys: [...selection], csrf })
+    });
+
+    if (!response.ok) {
+      statusLine.textContent = await errorMessage(response, "Download failed.");
+      return;
+    }
+
+    const blob = await response.blob();
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const match = /filename="?([^";]+)"?/i.exec(disposition);
+    const fileName = match ? match[1] : `snapshots-${timestampForFile()}.zip`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    statusLine.textContent = `Downloaded ${selection.size} snapshot${selection.size === 1 ? "" : "s"}.`;
+  } catch {
+    statusLine.textContent = "Download failed.";
+  } finally {
+    downloadSelectedButton.disabled = selection.size === 0;
+  }
+}
+
+async function deleteSelected() {
+  if (selection.size === 0) {
+    return;
+  }
+
+  const count = selection.size;
+  const confirmed = window.confirm(
+    `Delete ${count} snapshot${count === 1 ? "" : "s"} from the cloud bucket? They will be gone from storage, not only from this screen.`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  deleteSelectedButton.disabled = true;
+  try {
+    const response = await fetch("/api/snapshots/delete-batch", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keys: [...selection], csrf })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      statusLine.textContent = payload.error || "Delete failed.";
+      return;
+    }
+
+    selection.clear();
+    await loadLibrary();
+    statusLine.textContent = payload.failed > 0
+      ? `Deleted ${payload.deleted}; ${payload.failed} could not be removed.`
+      : `Deleted ${payload.deleted} snapshot${payload.deleted === 1 ? "" : "s"}.`;
+  } catch {
+    statusLine.textContent = "Delete failed.";
+  } finally {
+    deleteSelectedButton.disabled = selection.size === 0;
+  }
+}
+
+async function errorMessage(response, fallback) {
+  try {
+    const payload = await response.json();
+    return payload.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function timestampForFile() {
+  return new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
 }
 
 function openShot(folder, shot) {

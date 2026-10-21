@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -5,6 +6,7 @@ using SecureDeviceControl.SnapshotPortal.Security;
 using SecureDeviceControl.SnapshotPortal.Storage;
 
 const string SessionCookieName = "__Host-sdc_session";
+const int MaxBatchSnapshots = 500;
 
 var hiddenSnapshotFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
@@ -292,8 +294,155 @@ app.MapPost("/api/snapshots/delete", async (HttpContext context, CancellationTok
     }
 });
 
+app.MapPost("/api/snapshots/delete-batch", async (HttpContext context, CancellationToken cancellationToken) =>
+{
+    var session = CurrentSession(context);
+    if (session is null)
+    {
+        return Results.Json(new { error = "Sign in required." }, statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    var (keys, error) = await ReadBatchKeysAsync(context, session, jsonOptions, cancellationToken);
+    if (error is not null)
+    {
+        return error;
+    }
+
+    var batchKeys = keys!;
+    try
+    {
+        var deleted = await store.DeleteManyAsync(batchKeys, cancellationToken);
+        if (deleted > 0)
+        {
+            libraryCache.Invalidate();
+        }
+
+        return Results.Json(new
+        {
+            ok = deleted == batchKeys.Count,
+            deleted,
+            failed = batchKeys.Count - deleted
+        });
+    }
+    catch (Exception)
+    {
+        return Results.Json(new { error = "The cloud bucket refused the delete." }, statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
+app.MapPost("/api/snapshots/download-batch", async (HttpContext context, CancellationToken cancellationToken) =>
+{
+    var session = CurrentSession(context);
+    if (session is null)
+    {
+        return Results.Json(new { error = "Sign in required." }, statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    if (!store.IsConfigured)
+    {
+        return Results.Json(new { error = "Cloud storage is not configured." }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    var (keys, error) = await ReadBatchKeysAsync(context, session, jsonOptions, cancellationToken);
+    if (error is not null)
+    {
+        return error;
+    }
+
+    var batchKeys = keys!;
+    byte[] firstFrame;
+    try
+    {
+        firstFrame = await store.DownloadAsync(batchKeys[0], cancellationToken);
+    }
+    catch (Exception)
+    {
+        return Results.Json(new { error = "The cloud bucket did not return those snapshots." }, statusCode: StatusCodes.Status502BadGateway);
+    }
+
+    var fileName = $"snapshots-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.zip";
+    context.Response.ContentType = "application/zip";
+    context.Response.Headers.ContentDisposition = $"attachment; filename=\"{fileName}\"";
+
+    using (var archive = new ZipArchive(context.Response.Body, ZipArchiveMode.Create, leaveOpen: true))
+    {
+        AddZipEntry(archive, batchKeys[0], firstFrame);
+        foreach (var key in batchKeys.Skip(1))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                AddZipEntry(archive, key, await store.DownloadAsync(key, cancellationToken));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                // A frame removed while the zip is being built is skipped.
+            }
+        }
+    }
+
+    return Results.Empty;
+});
+
 app.UseStaticFiles();
 app.Run();
+
+static void AddZipEntry(ZipArchive archive, string objectKey, byte[] imageBytes)
+{
+    var entry = archive.CreateEntry(objectKey, CompressionLevel.NoCompression);
+    using var entryStream = entry.Open();
+    entryStream.Write(imageBytes, 0, imageBytes.Length);
+}
+
+static async Task<(List<string>? Keys, IResult? Error)> ReadBatchKeysAsync(
+    HttpContext context,
+    PortalSession session,
+    JsonSerializerOptions jsonOptions,
+    CancellationToken cancellationToken)
+{
+    if (context.Request.ContentLength is > 512 * 1024)
+    {
+        return (null, Results.Json(new { error = "That selection is too large." }, statusCode: StatusCodes.Status400BadRequest));
+    }
+
+    BatchRequest? body;
+    try
+    {
+        body = await JsonSerializer.DeserializeAsync<BatchRequest>(context.Request.Body, jsonOptions, cancellationToken);
+    }
+    catch
+    {
+        return (null, Results.Json(new { error = "Could not read that selection." }, statusCode: StatusCodes.Status400BadRequest));
+    }
+
+    if (body is null || !FixedEqual(body.Csrf, session.CsrfToken))
+    {
+        return (null, Results.Json(new { error = "Could not read that selection." }, statusCode: StatusCodes.Status400BadRequest));
+    }
+
+    var keys = (body.Keys ?? new List<string>())
+        .Where(key => SnapshotCatalog.TryParse(key) is not null)
+        .Distinct(StringComparer.Ordinal)
+        .ToList();
+
+    if (keys.Count == 0)
+    {
+        return (null, Results.Json(new { error = "Select at least one snapshot." }, statusCode: StatusCodes.Status400BadRequest));
+    }
+
+    if (keys.Count > MaxBatchSnapshots)
+    {
+        return (null, Results.Json(
+            new { error = $"Select no more than {MaxBatchSnapshots} snapshots at a time." },
+            statusCode: StatusCodes.Status400BadRequest));
+    }
+
+    return (keys, null);
+}
 
 static async Task<string> ReadPasswordAsync(HttpRequest request, JsonSerializerOptions jsonOptions)
 {
@@ -418,5 +567,11 @@ public sealed class LoginRequest
 public sealed class DeleteRequest
 {
     public string Key { get; set; } = "";
+    public string Csrf { get; set; } = "";
+}
+
+public sealed class BatchRequest
+{
+    public List<string>? Keys { get; set; }
     public string Csrf { get; set; } = "";
 }
